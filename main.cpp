@@ -144,7 +144,10 @@ bool canWalk(float x, float y);
 int pickUpKey(glm::vec3 pos);
 int unlockDoor(glm::vec3 pos);
 void goalReached();
-void pickUp(glm::vec3 pos);
+bool pickUp();
+glm::vec3 rayCast(int mouse_x, int mouse_y);
+bool rayPlaneIntersection(Object obj);
+bool raySphereIntersection(Object obj);
 //void mouse_click(int button, int state, int x, int y);
 //void mouse_move(int x, int y);
 
@@ -341,18 +344,18 @@ int main(int argc, char *argv[]){
 		if(!goal){
 			const Uint8 *state = SDL_GetKeyboardState(NULL);
 			if (state[SDL_SCANCODE_UP] || state[SDL_SCANCODE_W]) {
-				move = glm::vec3(forward.x, 0, forward.z);
+				move = glm::vec3(forward.x, forward.y, forward.z);
 				printf("\nposition: (%f,%f,%f)\n", player.getPos().x, player.getPos().y, player.getPos().z);
 			}
 			if (state[SDL_SCANCODE_DOWN] || state[SDL_SCANCODE_S]) {
-				move = -1.f*glm::vec3(forward.x, 0, forward.z);
+				move = -1.f*glm::vec3(forward.x, forward.y, forward.z);
 				printf("\nposition: (%f,%f,%f)\n", player.getPos().x, player.getPos().y, player.getPos().z);
 			}
 			if (state[SDL_SCANCODE_RIGHT] || state[SDL_SCANCODE_D]) {
-				move = glm::cross(glm::vec3(forward.x, 0, forward.z), glm::vec3(0,1,0));
+				move = glm::cross(glm::vec3(forward.x, forward.y, forward.z), glm::vec3(0,1,0));
 			}
 			if (state[SDL_SCANCODE_LEFT] || state[SDL_SCANCODE_A]) {
-				move = glm::cross(-1.f*glm::vec3(forward.x, 0, forward.z), glm::vec3(0,1,0));
+				move = glm::cross(-1.f*glm::vec3(forward.x, forward.y, forward.z), glm::vec3(0,1,0));
 			}
 			if (state[SDL_SCANCODE_SPACE]) {
 				if(!jumping && !falling){
@@ -360,13 +363,13 @@ int main(int argc, char *argv[]){
 					prev_y = player.pos.y;
 				}
 			}
-			if (state[SDL_SCANCODE_G]) {
+			if (state[SDL_SCANCODE_G] && state[SDL_KEYUP]) {
 				Object wall = Object(player.pos + 2.f*fwd, glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), 0, models[1].start, models[1].numVerts, 1, glm::vec3(1,0,0), 'w');
 				int x = (int) floorf(wall.pos.x + mapWidth / 2.f);
 				int z = (int) floorf(wall.pos.z + mapHeight / 2.f);
 				map[x + z * mapWidth] = wall;
 				objects.push_back(map[x + z*mapWidth]);
-				usleep(5000);
+				usleep(20000);
 			}
 
 			cur_time = SDL_GetTicks()/1000.f;
@@ -395,13 +398,7 @@ int main(int argc, char *argv[]){
 				cur_key = pickUpKey(player.pos);
 				cur_door = unlockDoor(player.pos);
 				//pickUp(player.pos);
-				int x = (int) floorf(player.pos.x + mapWidth / 2.f);
-				int z = (int) floorf(player.pos.z + mapHeight / 2.f);
-				char keyChar = map[x + z * mapWidth].type;
-				if(keyChar != 'z'){
-					map[x + z * mapWidth].pos = player.pos + 2.f*fwd;
-					printf("\n gum ball \n");
-				}
+				pickUp();
 			}
 			if(mouse & SDL_BUTTON(SDL_BUTTON_RIGHT));
 			else {
@@ -948,7 +945,7 @@ void goalReached(){
 	}
 }
 
-void pickUp(glm::vec3 pos){
+/*void pickUp(glm::vec3 pos){
 	int x = (int) floorf(pos.x + mapWidth / 2.f);
 	int z = (int) floorf(pos.z + mapHeight / 2.f);
 	char keyChar = map[x + z * mapWidth].type;
@@ -957,4 +954,85 @@ void pickUp(glm::vec3 pos){
 	}
 	//map[x + z * mapWidth].pos = player.pos;
 	//return num;
+}*/
+
+glm::vec3 rayCast(int mouse_x, int mouse_y){
+	//Normalized device coords
+	float x = (2.0f * mouse_x) / screenWidth - 1.0f;
+	float y = 1.0f - (2.0f * mouse_y) / screenHeight;
+	float z = 1.0f;
+	glm::vec3 ray = glm::vec3(x,y,z);
+
+	//Clip coords
+	glm::vec4 ray_clip = glm::vec4(ray.x, ray.y, -1.0, 1.0); //may cause errors
+
+	//Eye coords
+	glm::mat4 proj = glm::perspective(3.14f/4, screenWidth / (float) screenHeight, 0.1f, 10.0f);
+	glm::vec4 ray_eye = inverse(proj) * ray_clip;
+	ray_eye = glm::vec4(ray_eye.x, ray_eye.y, -1.0, 0.0);
+	
+	//view matrix
+	glm::mat4 view = glm::lookAt(
+	player.pos,
+	player.pos + fwd,  //Look at point
+	glm::vec3(0.0f, 1.0f, 0.0f)); //Up
+
+	//World coords
+	glm::vec4 ray_w = (inverse(view) * ray_eye);
+	glm::vec3 ray_world = glm::vec3(ray_w.x, ray_w.y, ray_w.z);
+	ray_world = glm::normalize(ray_world);
+
+	return ray_world;
+}
+
+/*
+bool rayPlaneIntersection(Object obj){
+	float denom = glm::dot(-1.f*fwd, rayCast(mouse_x, mouse_y));
+	glm::vec3 sub = obj.pos - player.pos;
+	float dist = glm::dot(sub, rayCast(mouse_x, mouse_y));
+	return (dist >= 0);
+}*/
+
+bool raySphereIntersection(Object obj){
+	float radius = 0.5;
+	glm::vec3 ray = rayCast(mouse_x, mouse_y);
+	float a = glm::dot(ray,ray);
+	glm::vec3 toStart = player.pos - obj.pos;
+	float b = 2 * glm::dot(ray, toStart);
+	float c = glm::dot(toStart, toStart) - radius*radius;
+	float discr = b*b - 4*a*c;
+	if(discr < 0) return false;
+	else{
+		float t0 = (-b + sqrt(discr))/(2*a);
+   		float t1 = (-b - sqrt(discr))/(2*a);
+    	if (t0 > 0 || t1 > 0) return true;
+  	}
+  	return false;
+}
+
+/*void pickUp(){
+	for(int i = 0; i < objects.size(); i++){
+		if(objects[i].type != 'z' && player.pos.x - objects[i].pos.x < 1 && player.pos.y - objects[i].pos.y < 1 && player.pos.z - objects[i].pos.z < 1){
+			objects[i].pos = player.pos + fwd;
+			printf("\nObject type: %c\n", objects[i].type);
+		}
+	}
+}*/
+
+bool pickUp(){
+	float min_dist = INFINITY;
+	for(int i = 0; i < objects.size(); i++){
+		float dist = (objects[i].pos - player.pos).length();
+		if(dist < min_dist){
+			min_dist = dist;
+		}
+		if(dist == min_dist){
+			if(raySphereIntersection(objects[i]) && objects[i].type != 'z'){
+				objects[i].pos = player.pos + fwd;
+				//printf("\nObject type: %c\n", objects[i].type);
+				return true;
+			}
+		}
+	}
+	return false;
 }
