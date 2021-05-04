@@ -9,6 +9,7 @@ public:
     int index, numVerts, texNum;
     float rotAngle;
     char type;
+    bool isSelected = false;
     Object(){
         pos = glm::vec3(0,0,0);
         scale = glm::vec3(1,1,1);

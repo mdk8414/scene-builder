@@ -35,11 +35,8 @@ const char* INSTRUCTIONS =
 #include <cstdio>
 
 #define GLM_FORCE_RADIANS
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
-#include "glm/gtx/transform.hpp"
 #include <GLUT/glut.h>
+//#include ""
 
 
 
@@ -120,6 +117,7 @@ int mouse_x = 0;
 int mouse_y = 0;
 float xoffset = 0.0f;
 float yoffset = 0.0f;
+bool selected = false;
 //std::vector<std::vector<Object>> objects;
 glm::vec3 fwd;
 
@@ -339,6 +337,31 @@ int main(int argc, char *argv[]){
 				cur_key = pickUpKey(player.pos);
 				cur_door = unlockDoor(player.pos);
 			}
+			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_g){ //If "g" is pressed
+				Object wall = Object(player.pos + 2.f*fwd, glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), 0, models[1].start, models[1].numVerts, 1, glm::vec3(1,0,0), 'w');
+				int x = (int) floorf(wall.pos.x + mapWidth / 2.f);
+				int z = (int) floorf(wall.pos.z + mapHeight / 2.f);
+				map[x + z * mapWidth] = wall;
+				objects.push_back(map[x + z*mapWidth]);
+				usleep(20000);
+			}
+			/*if (windowEvent.type == SDL_MOUSEBUTTONUP){ //If "g" is pressed
+				if(!selected)
+					pickUp();
+				
+				if(selected){
+					selected = false;
+					for(int i = 0; i < objects.size(); i++){
+						objects[i].isSelected = false;
+					}
+				}
+			}*/
+			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_c){ //If "c" is pressed
+				selected = false;
+				for(int i = 0; i < objects.size(); i++){
+					objects[i].isSelected = false;
+				}
+			}
 
 		}
 		if(!goal){
@@ -363,14 +386,14 @@ int main(int argc, char *argv[]){
 					prev_y = player.pos.y;
 				}
 			}
-			if (state[SDL_SCANCODE_G] && state[SDL_KEYUP]) {
+			/*if (state[SDL_SCANCODE_G] && state[SDL_KEYUP]) {
 				Object wall = Object(player.pos + 2.f*fwd, glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), 0, models[1].start, models[1].numVerts, 1, glm::vec3(1,0,0), 'w');
 				int x = (int) floorf(wall.pos.x + mapWidth / 2.f);
 				int z = (int) floorf(wall.pos.z + mapHeight / 2.f);
 				map[x + z * mapWidth] = wall;
 				objects.push_back(map[x + z*mapWidth]);
 				usleep(20000);
-			}
+			}*/
 
 			cur_time = SDL_GetTicks()/1000.f;
 			time_past = cur_time - prev_time;
@@ -379,8 +402,9 @@ int main(int argc, char *argv[]){
 			Uint8 mouse;
 			int cur_x, cur_y; 
 			mouse = SDL_GetMouseState(&cur_x, &cur_y);
-			turn_x = (mouse_x - cur_x)*0.2;
-			turn_y = (mouse_y - cur_y)*0.2;
+			turn_x = (mouse_x - cur_x);
+			turn_y = (mouse_y - cur_y);
+			//glm::vec3 look = forward - rayCast(mouse_x, mouse_y);
 			mouse_x = cur_x;
 			mouse_y = cur_y;
 			//printf("\nmouse x: %d\n", mouse_x);
@@ -395,16 +419,17 @@ int main(int argc, char *argv[]){
 				//usleep(10000);
 			}
 			if(mouse & SDL_BUTTON(SDL_BUTTON_LEFT)){
-				cur_key = pickUpKey(player.pos);
-				cur_door = unlockDoor(player.pos);
+				//cur_key = pickUpKey(player.pos);
+				//cur_door = unlockDoor(player.pos);
 				//pickUp(player.pos);
-				pickUp();
+				if(!selected)
+					pickUp();
 			}
 			if(mouse & SDL_BUTTON(SDL_BUTTON_RIGHT));
 			else {
-				forward = (glm::rotate(5.f*turn_x*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
+				forward = (glm::rotate(turn_x*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
 				//forward = (glm::rotate(5*sin(turn_x)*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
-				forward = (glm::rotate(5.f*turn_y*time_past, glm::cross(fwd, glm::vec3(0,1,0))) * glm::vec4(forward, 0.f));
+				forward = (glm::rotate(turn_y*time_past, glm::cross(fwd, glm::vec3(0,1,0))) * glm::vec4(forward, 0.f));
 				//forward = glm::vec3(sin(turn_x)*time_past, forward.y, (cos(turn_x)) * time_past);
 				//keyTurn += 0.01;
 			}
@@ -451,6 +476,9 @@ int main(int argc, char *argv[]){
 
 			for(int i = 0; i < objects.size(); i++){
 				draw(texturedShader, objects[i], objects[i].tex(), objects[i].color);
+				if(objects[i].isSelected){
+					objects[i].pos = player.pos + rayCast(mouse_x, mouse_y);
+				}
 				if(objects[i].type >= 'A' && objects[i].type <= 'F'){
 					if(doors[objects[i].type - 65]){
 						glm::vec3 pos;
@@ -1028,7 +1056,9 @@ bool pickUp(){
 		}
 		if(dist == min_dist){
 			if(raySphereIntersection(objects[i]) && objects[i].type != 'z'){
-				objects[i].pos = player.pos + fwd;
+				//objects[i].pos = player.pos + rayCast(mouse_x, mouse_y);
+				objects[i].isSelected = true;
+				selected = true;
 				//printf("\nObject type: %c\n", objects[i].type);
 				return true;
 			}
