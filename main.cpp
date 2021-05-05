@@ -23,6 +23,10 @@ const char* INSTRUCTIONS =
 
 //Mac OS build: g++ multiObjectTest.cpp -x c glad/glad.c -g -F/Library/Frameworks -framework SDL2 -framework OpenGL -o MultiObjTest
 //Linux build:  g++ multiObjectTest.cpp -x c glad/glad.c -g -lSDL2 -lSDL2main -lGL -ldl -I/usr/include/SDL2/ -o MultiObjTest
+#define IMGUI_IMPL_OPENGL_LOADER_GLAD
+#include "imgui/imgui.h"
+#include "imgui/backends/imgui_impl_sdl.h"
+#include "imgui/backends/imgui_impl_opengl3.h"
 
 #include "glad/glad.h"  //Include order can matter here
 #if defined(__APPLE__) || defined(__linux__)
@@ -62,6 +66,33 @@ struct Color{
   Color(float r, float g, float b) : r(r), g(g), b(b) {}
   Color() : r(0), g(0), b(0) {}
 };
+
+class Selected{
+public:
+	Object* object_ptr = nullptr;
+	glm::vec3 color = glm::vec3();
+	float scaleX = 1.0;
+	float scaleY = 1.0;
+	float scaleZ = 1.0;
+	float yaw = 0.0;
+	float pitch = 0.0;
+	float roll = 0.0;
+	int texNum = -1;
+	int modelNum = 0;
+};
+
+Selected selectedObject;/*
+selectedObject.object_ptr = nullptr;
+selectedObject.color = Color();
+selectedObject.scaleX = 1.0;
+selectedObject.scaleY = 1.0;
+selectedObject.scaleZ = 1.0;
+selectedObject.yaw = 0.0;
+selectedObject.pitch = 0.0;
+selectedObject.roll = 0.0;
+selectedObject.texNum = -1;
+selectedObject.modelNum = 0;*/
+//int startVert = 0;
 
 //int startVert = 0;
 
@@ -170,7 +201,7 @@ int main(int argc, char *argv[]){
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
 	//Create a window (offsetx, offsety, width, height, flags)
-	SDL_Window* window = SDL_CreateWindow("My OpenGL Program", 100, 100, screenWidth, screenHeight, SDL_WINDOW_OPENGL);
+	SDL_Window* window = SDL_CreateWindow("Scene Builder", 100, 100, screenWidth, screenHeight, SDL_WINDOW_OPENGL);
 
 	//Create a context to draw in
 	SDL_GLContext context = SDL_GL_CreateContext(window);
@@ -187,6 +218,20 @@ int main(int argc, char *argv[]){
 		return -1;
 	}
 	
+	// IMGUI setup
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	ImGui::StyleColorsDark();
+
+	ImGui_ImplSDL2_InitForOpenGL(window, context);
+	ImGui_ImplOpenGL3_Init("#version 150");
+
+	bool show_demo_window = true;
+	bool show_another_window = false;
+	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+	// End IMGUI setup
+
 	//Here we will load two different model files 
 	
 	string mapName = "maps/blank.txt";
@@ -340,6 +385,103 @@ int main(int argc, char *argv[]){
 		turn_x = 0;
 		turn_y = 0;
 		fwd = forward;
+
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplSDL2_NewFrame(window);
+		ImGui::NewFrame();
+		if (show_demo_window) {
+			//ImGui::ShowDemoWindow(&show_demo_window);
+			bool start = true;
+			ImGui::Begin("Selection Menu", &start);
+
+			ImGui::Text("Scale & Rotate");
+			ImGui::SliderFloat("Scale X", &(selectedObject.scaleX), 0.0f, 10.0f);
+			ImGui::SliderFloat("Scale Y", &(selectedObject.scaleY), 0.0f, 10.0f);
+			ImGui::SliderFloat("Scale Z", &(selectedObject.scaleZ), 0.0f, 10.0f);
+			ImGui::SliderFloat("Roll", &(selectedObject.roll), -3.14f, 3.14f);
+			ImGui::SliderFloat("Pitch", &(selectedObject.pitch), -3.14f, 3.14f);
+			ImGui::SliderFloat("Yaw", &(selectedObject.yaw), -3.14f, 3.14f);
+
+			ImGui::Text("Color & Texture");
+			ImGui::ColorEdit3("Color", (float*)&clear_color);
+			selectedObject.color = glm::vec3(clear_color.x, clear_color.y, clear_color.z);
+			const char* textureList[] = {"None", "Wood", "Brick"};
+			if (ImGui::Button("Texture"))
+				ImGui::OpenPopup("texture_list");
+			ImGui::SameLine();
+			ImGui::TextUnformatted(textureList[selectedObject.texNum+1]);
+			if (ImGui::BeginPopup("texture_list")) {
+				for (int i = 0; i < IM_ARRAYSIZE(textureList); i++) {
+					if (ImGui::Selectable(textureList[i])) {
+						selectedObject.texNum = i - 1;
+						printf("Selected tex: %s texNum: %i\n", textureList[i], selectedObject.texNum);
+					}
+				}
+				ImGui::EndPopup();
+			}
+
+			ImGui::Text("Model Selection");
+			const char* modelList[] = {"Teapot", "Cube", "Knot", "Sphere"};
+			if (ImGui::Button("Model"))
+				ImGui::OpenPopup("model_list");
+			ImGui::SameLine();
+			ImGui::TextUnformatted(modelList[selectedObject.modelNum]);
+			if (ImGui::BeginPopup("model_list")) {
+				for (int i = 0; i < IM_ARRAYSIZE(modelList); i++) {
+					if (ImGui::Selectable(modelList[i])) {
+						selectedObject.modelNum = i;
+					}
+				}
+				ImGui::EndPopup();
+			}
+
+			ImGui::End();
+		}
+		ImGui::Render();
+
+		if (selectedObject.modelNum == 0){ //If 0 is pressed
+				model_num = 0; //teapot
+				if(selected){
+					objects[cur_selection].numVerts = models[model_num].numVerts;
+					objects[cur_selection].index = models[model_num].start;
+				}
+			}
+			if (selectedObject.modelNum == 1){ //If 1 is pressed
+				model_num = 1; //cube
+				if(selected){
+					objects[cur_selection].numVerts = models[model_num].numVerts;
+					objects[cur_selection].index = models[model_num].start;
+				}
+			}
+			if (selectedObject.modelNum == 2){ //If 2 is pressed
+				model_num = 2; //knot
+				if(selected){
+					objects[cur_selection].numVerts = models[model_num].numVerts;
+					objects[cur_selection].index = models[model_num].start;
+				}
+			}
+			if (selectedObject.modelNum == 3){ 
+				model_num = 3; //sphere
+				if(selected){
+					objects[cur_selection].numVerts = models[model_num].numVerts;
+					objects[cur_selection].index = models[model_num].start;
+				}
+			}
+			if (selectedObject.texNum == 0){
+				tex_num = 0; //wood
+				if(selected){
+					objects[cur_selection].texNum = tex_num;
+				}
+			}
+			if (selectedObject.texNum == 1){
+				tex_num = 1; //brick
+				if(selected){
+					objects[cur_selection].texNum = tex_num;
+				}
+			}
+			objects[cur_selection].scale = glm::vec3(selectedObject.scaleX, selectedObject.scaleY, selectedObject.scaleZ);
+			objects[cur_selection].rotAngle = glm::vec3(selectedObject.roll, selectedObject.pitch, selectedObject.yaw);
+
 		while (SDL_PollEvent(&windowEvent)){  //inspect all events in the queue
 			if (windowEvent.type == SDL_QUIT) quit = true;
 			//List of keycodes: https://wiki.libsdl.org/SDL_Keycode - You can catch many special keys
@@ -394,8 +536,10 @@ int main(int argc, char *argv[]){
 				}
 			}
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_SPACE){ //If "space" is pressed
-				obj = Object(player.pos + 2.f*fwd, glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), 0, models[model_num].start, models[model_num].numVerts, tex_num, glm::vec3(1,0,0), 'w');
+				obj = Object(player.pos + 2.f*fwd, glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), glm::vec3(0,0,0), models[model_num].start, models[model_num].numVerts, tex_num, glm::vec3(1,0,0), 'w');
 				objects.push_back(obj);
+				selected = true;
+				cur_selection = objects.size() - 1;
 			}
 			/*if (windowEvent.type == SDL_MOUSEBUTTONUP){ //If "g" is pressed
 				if(!selected)
@@ -414,6 +558,9 @@ int main(int argc, char *argv[]){
 					objects[i].isSelected = false;
 				}
 			}
+			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_m) {
+				show_demo_window = !show_demo_window;
+			}
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_LSHIFT){ //If left shift is pressed
 				scaling = true;
 			}
@@ -428,6 +575,8 @@ int main(int argc, char *argv[]){
 			}
 
 		}
+
+
 		if(!goal){
 			const Uint8 *state = SDL_GetKeyboardState(NULL);
 			if (state[SDL_SCANCODE_UP] || state[SDL_SCANCODE_W]) {
@@ -462,46 +611,49 @@ int main(int argc, char *argv[]){
 			cur_time = SDL_GetTicks()/1000.f;
 			time_past = cur_time - prev_time;
 			prev_time = cur_time;
-
-			Uint8 mouse;
-			int cur_x, cur_y; 
-			mouse = SDL_GetMouseState(&cur_x, &cur_y);
-			turn_x = (mouse_x - cur_x);
-			turn_y = (mouse_y - cur_y);
-			//glm::vec3 look = forward - rayCast(mouse_x, mouse_y);
-			mouse_x = cur_x;
-			mouse_y = cur_y;
-			//printf("\nmouse x: %d\n", mouse_x);
-			if(mouse_x <= 5){
-				turn_x += 0.5;
-				forward = (glm::rotate(5.f*turn_x*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
-				//usleep(10000);
-			}
-			if(mouse_x >= screenWidth - 5){
-				turn_x -= 0.5;
-				forward = (glm::rotate(5.f*turn_x*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
-				//usleep(10000);
-			}
 			glm::vec3 start_pos;
-			if(mouse & SDL_BUTTON(SDL_BUTTON_LEFT)){
-				//cur_key = pickUpKey(player.pos);
-				//cur_door = unlockDoor(player.pos);
-				//pickUp(player.pos);
-				if(!selected)
-					cur_selection = pickUp(start_pos);
-			}
-			if(mouse & SDL_BUTTON(SDL_BUTTON_RIGHT));
-			else {
-				forward = (glm::rotate(turn_x*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
-				//forward = (glm::rotate(5*sin(turn_x)*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
-				forward = (glm::rotate(turn_y*time_past, glm::cross(fwd, glm::vec3(0,1,0))) * glm::vec4(forward, 0.f));
-				//forward = glm::vec3(sin(turn_x)*time_past, forward.y, (cos(turn_x)) * time_past);
-				//keyTurn += 0.01;
+			if(!show_demo_window){
+				Uint8 mouse;
+				int cur_x, cur_y; 
+				mouse = SDL_GetMouseState(&cur_x, &cur_y);
+				turn_x = (mouse_x - cur_x);
+				turn_y = (mouse_y - cur_y);
+				//glm::vec3 look = forward - rayCast(mouse_x, mouse_y);
+				mouse_x = cur_x;
+				mouse_y = cur_y;
+				//printf("\nmouse x: %d\n", mouse_x);
+				if(mouse_x <= 5){
+					turn_x += 0.5;
+					forward = (glm::rotate(5.f*turn_x*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
+					//usleep(10000);
+				}
+				if(mouse_x >= screenWidth - 5){
+					turn_x -= 0.5;
+					forward = (glm::rotate(5.f*turn_x*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
+					//usleep(10000);
+				}
+				if(mouse & SDL_BUTTON(SDL_BUTTON_LEFT)){
+					//cur_key = pickUpKey(player.pos);
+					//cur_door = unlockDoor(player.pos);
+					//pickUp(player.pos);
+					if(!selected)
+						cur_selection = pickUp(start_pos);
+				}
+				if(mouse & SDL_BUTTON(SDL_BUTTON_RIGHT));
+				else {
+					forward = (glm::rotate(turn_x*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
+					//forward = (glm::rotate(5*sin(turn_x)*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
+					forward = (glm::rotate(turn_y*time_past, glm::cross(fwd, glm::vec3(0,1,0))) * glm::vec4(forward, 0.f));
+					//forward = glm::vec3(sin(turn_x)*time_past, forward.y, (cos(turn_x)) * time_past);
+					//keyTurn += 0.01;
+				}
 			}
 
 			// Clear the screen to default color
 			glClearColor(.2f, 0.4f, 0.8f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 			glUseProgram(texturedShader);
 
@@ -536,7 +688,7 @@ int main(int argc, char *argv[]){
 				playerPos = newPos;
 			}
 
-			float playerAng = player.rotAngle + 5.f*turn_x*time_past;
+			glm::vec3 playerAng = player.rotAngle + 5.f*turn_x*time_past;
 			glm::vec3 color = glm::vec3(0.5,0.5,0.5);
 
 			for(int i = 0; i < objects.size(); i++){
@@ -547,7 +699,7 @@ int main(int argc, char *argv[]){
 						if(objects[i].pos.y > -0.5f)
 							pos = glm::vec3(objects[i].pos.x, objects[i].pos.y - 0.01f, objects[i].pos.z);
 						//glm::vec3 color = glm::vec3(0.5,0.5,0.5);
-						objects[i] = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), 0, models[1].start, models[1].numVerts, -1, objects[i].color, objects[i].type);
+						objects[i] = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), glm::vec3(0,0,0), models[1].start, models[1].numVerts, -1, objects[i].color, objects[i].type);
 						//doors[cur_door] = false;
 						//have_keys[cur_door] = false;
 						//obj.pos = glm::vec3(0,-10,0);
@@ -563,25 +715,26 @@ int main(int argc, char *argv[]){
 					printf("Object intersect position: (%f, %f, %f)\n", intersect.x, intersect.y, intersect.z);
 				}*/
 				//printf("Mouse ray position: (%f, %f, %f)\n", mouse_ray.x, mouse_ray.y, mouse_ray.z);
-				objects[cur_selection].pos = start_pos + rayCast(mouse_x, mouse_y, player.pos);// + 2.f*glm::vec3(fwd.x, fwd.y, fwd.z);
+				//objects[cur_selection].pos = start_pos + rayCast(mouse_x, mouse_y, player.pos);// + 2.f*glm::vec3(fwd.x, fwd.y, fwd.z);
 				//objects[cur_selection].pos = hitIntersect(objects[cur_selection]);
+				objects[cur_selection].pos = player.pos + rayCast(mouse_x, mouse_y, player.pos);
 			}
 			else if(selected && scaling && !rotating){
 				objects[cur_selection].scale += 0.01*(turn_x + turn_y)/2.0;
 			}
 			else if(selected && !scaling && rotating){
 				if(turn_x){
-					objects[cur_selection].rotAxis = glm::vec3(0,1,0);
-					objects[cur_selection].rotAngle += 0.1*turn_x;
+					//objects[cur_selection].rotAxis = glm::vec3(0,1,0);
+					objects[cur_selection].rotAngle.x += 0.1*turn_x;
 				}
-				else if(turn_y){
-					objects[cur_selection].rotAxis = glm::vec3(0,0,1);
+				if(turn_y){
+					//objects[cur_selection].rotAxis = glm::vec3(0,0,1);
+					objects[cur_selection].rotAngle.y += 0.1*turn_y;
+				}
+				/*else if(turn_x && turn_y){
+					//objects[cur_selection].rotAxis = glm::vec3(1,1,1);
 					objects[cur_selection].rotAngle += 0.1*turn_y;
-				}
-				else if(turn_x && turn_y){
-					objects[cur_selection].rotAxis = glm::vec3(1,1,1);
-					objects[cur_selection].rotAngle += 0.1*turn_y;
-				}
+				}*/
 			}
 			else if(selected && scaling && rotating){
 				glm::vec3 mouse_ray = rayCast(mouse_x, mouse_y, start_pos);
@@ -667,6 +820,10 @@ int main(int argc, char *argv[]){
     glDeleteBuffers(1, vbo);
     glDeleteVertexArrays(1, &vao);
 
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplSDL2_Shutdown();
+	ImGui::DestroyContext();
+
 	SDL_GL_DeleteContext(context);
 	SDL_Quit();
 	return 0;
@@ -679,7 +836,7 @@ void draw(int shaderProgram, Object obj, int texNum, glm::vec3 color){
 			//printf("%c", obj.type);
 			//printf("\njoe mama\n");
 			//float angle = atan(fwd.x / fwd.z);
-			obj = Object(player.pos + fwd + glm::vec3(0,0.35,0), glm::vec3(0.1,0.1,0.1), obj.rotAxis, 0, obj.index, obj.numVerts, obj.texNum, obj.color, obj.type);
+			obj = Object(player.pos + fwd + glm::vec3(0,0.35,0), glm::vec3(0.1,0.1,0.1), obj.rotAxis, glm::vec3(0,0,0), obj.index, obj.numVerts, obj.texNum, obj.color, obj.type);
 			//obj.pos = player.pos + fwd;
 		}
 	}
@@ -697,7 +854,10 @@ void draw(int shaderProgram, Object obj, int texNum, glm::vec3 color){
 
 	model = glm::translate(model, obj.getPos());
 	model = glm::scale(model, obj.getScale());
-	model = glm::rotate(model, obj.rotAngle, obj.rotAxis);
+	//model = glm::rotate(model, obj.rotAngle.x, obj.rotAxis);
+	model = glm::rotate(model, obj.rotAngle.x, glm::vec3(1,0,0));
+	model = glm::rotate(model, obj.rotAngle.y, glm::vec3(0,1,0));
+	model = glm::rotate(model, obj.rotAngle.z, glm::vec3(0,0,1));
 
 	//model = glm::scale(model,2.f*glm::vec3(1.f,1.f,0.5f)); //scale example
 	glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
@@ -854,7 +1014,7 @@ void loadMap(string fileName){
 				//int texturedShader = InitShader("textured-Vertex.glsl", "textured-Fragment.glsl");
 				glm::vec3 pos = glm::vec3(j - mapWidth / 2.0f + 0.5f, 0.5f, i + 0.5f - mapHeight/2.0f);
 				glm::vec3 color = glm::vec3(0.5,0.5,0.5);
-				Object wall = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), 0, models[1].start, models[1].numVerts, 1, color, 'w');
+				Object wall = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), glm::vec3(0,0,0), models[1].start, models[1].numVerts, 1, color, 'w');
 				map[index] = wall;
 				objects.push_back(map[index]);
 				//blocks.push_back(wall);
@@ -863,14 +1023,14 @@ void loadMap(string fileName){
 			else if(env == '0'){	//floor
 				glm::vec3 pos = glm::vec3(j - mapWidth / 2.0f + 0.5f, -0.5f, i + 0.5f - mapHeight/2.0f);
 				glm::vec3 color = glm::vec3(0.5,0.5,0.5);
-				Object floor = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), 0, models[1].start, models[1].numVerts, 0, color, 'z');
+				Object floor = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), glm::vec3(0,0,0), models[1].start, models[1].numVerts, 0, color, 'z');
 				objects.push_back(floor);
 				map[index] = floor;
 			}
 			else if(env == 'G'){	//goal
 				glm::vec3 pos = glm::vec3(j - mapWidth / 2.0f + 0.5f, -0.5f, i + 0.5f - mapHeight/2.0f);
 				glm::vec3 color = glm::vec3(1,1,0);
-				Object goal = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), 0, models[1].start, models[1].numVerts, -1, color, 'g');
+				Object goal = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), glm::vec3(0,0,0), models[1].start, models[1].numVerts, -1, color, 'g');
 				objects.push_back(goal);
 				map[index] = goal;
 			}
@@ -880,7 +1040,7 @@ void loadMap(string fileName){
 				player.pos = mapStart;
 				glm::vec3 pos = glm::vec3(j - mapWidth / 2.0f + 0.5f, -0.5f, i + 0.5f - mapHeight/2.0f);
 				glm::vec3 color = glm::vec3(1,0.2,0.2);
-				Object start = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), 0, models[1].start, models[1].numVerts, -1, color, 's');
+				Object start = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), glm::vec3(0,0,0), models[1].start, models[1].numVerts, -1, color, 's');
 				objects.push_back(start);
 				map[index] = start;
 				printf("\nStart Position: (%f,%f,%f)\n", pos.x, pos.y, pos.z);
@@ -895,7 +1055,7 @@ void loadMap(string fileName){
 				else if(env == 'D') color = glm::vec3(1,1,0);
 				else if(env == 'E') color = glm::vec3(0.5,0,1);
 				else if(env == 'F') color = glm::vec3(0,1,0);
-				Object door = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), 0, models[1].start, models[1].numVerts, -1, color, env);
+				Object door = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), glm::vec3(0,0,0), models[1].start, models[1].numVerts, -1, color, env);
 				objects.push_back(door);
 				//blocks.push_back(door);
 				map[index] = door;
@@ -910,11 +1070,11 @@ void loadMap(string fileName){
 				else if(env == 'd') color = glm::vec3(1,1,0);
 				else if(env == 'e') color = glm::vec3(0.5,0,1);
 				else if(env == 'f') color = glm::vec3(0,1,0);
-				Object key = Object(pos, glm::vec3(.4,.4,.4), glm::vec3(0,1,0), 0, models[0].start, models[0].numVerts, -1, color, env);
+				Object key = Object(pos, glm::vec3(.4,.4,.4), glm::vec3(0,1,0), glm::vec3(0,0,0), models[0].start, models[0].numVerts, -1, color, env);
 				objects.push_back(key);
 				map[index] = key;
 				pos = glm::vec3(j - mapWidth / 2.0f + 0.5f, -0.5f, i + 0.5f - mapHeight/2.0f);
-				Object floor = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), 0, models[1].start, models[1].numVerts, 0, color, 'z');
+				Object floor = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), glm::vec3(0,0,0), models[1].start, models[1].numVerts, 0, color, 'z');
 				objects.push_back(floor);
 			}
 		}
@@ -964,7 +1124,7 @@ void loadVictoryMap(){
 				//int texturedShader = InitShader("textured-Vertex.glsl", "textured-Fragment.glsl");
 				glm::vec3 pos = glm::vec3(j - mapWidth / 2.0f + 0.5f, 0.5f, i + 0.5f - mapHeight/2.0f);
 				glm::vec3 color = glm::vec3(0.5,0.5,0.5);
-				Object wall = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), 0, models[1].start, models[1].numVerts, 1, color, 'w');
+				Object wall = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), glm::vec3(0,0,0), models[1].start, models[1].numVerts, 1, color, 'w');
 				victoryMap.push_back(wall);
 				//blocks.push_back(wall);
 				//map[index] = wall;
