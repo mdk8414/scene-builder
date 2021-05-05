@@ -182,7 +182,7 @@ bool canWalk(float x, float y);
 int pickUpKey(glm::vec3 pos);
 int unlockDoor(glm::vec3 pos);
 void goalReached();
-int pickUp(glm::vec3 &start_pos);
+int pickUp();
 glm::vec3 rayCast(int mouse_x, int mouse_y, glm::vec3 pos);
 bool rayPlaneIntersection(Object obj);
 bool raySphereIntersection(Object obj);
@@ -439,48 +439,12 @@ int main(int argc, char *argv[]){
 		}
 		ImGui::Render();
 
-		if (selectedObject.modelNum == 0){ //If 0 is pressed
-				model_num = 0; //teapot
-				if(selected){
-					objects[cur_selection].numVerts = models[model_num].numVerts;
-					objects[cur_selection].index = models[model_num].start;
-				}
-			}
-			if (selectedObject.modelNum == 1){ //If 1 is pressed
-				model_num = 1; //cube
-				if(selected){
-					objects[cur_selection].numVerts = models[model_num].numVerts;
-					objects[cur_selection].index = models[model_num].start;
-				}
-			}
-			if (selectedObject.modelNum == 2){ //If 2 is pressed
-				model_num = 2; //knot
-				if(selected){
-					objects[cur_selection].numVerts = models[model_num].numVerts;
-					objects[cur_selection].index = models[model_num].start;
-				}
-			}
-			if (selectedObject.modelNum == 3){ 
-				model_num = 3; //sphere
-				if(selected){
-					objects[cur_selection].numVerts = models[model_num].numVerts;
-					objects[cur_selection].index = models[model_num].start;
-				}
-			}
-			if (selectedObject.texNum == 0){
-				tex_num = 0; //wood
-				if(selected){
-					objects[cur_selection].texNum = tex_num;
-				}
-			}
-			if (selectedObject.texNum == 1){
-				tex_num = 1; //brick
-				if(selected){
-					objects[cur_selection].texNum = tex_num;
-				}
-			}
-			objects[cur_selection].scale = glm::vec3(selectedObject.scaleX, selectedObject.scaleY, selectedObject.scaleZ);
-			objects[cur_selection].rotAngle = glm::vec3(selectedObject.roll, selectedObject.pitch, selectedObject.yaw);
+		objects[cur_selection].numVerts = models[selectedObject.modelNum].numVerts;
+		objects[cur_selection].index = models[selectedObject.modelNum].start;
+		objects[cur_selection].texNum = selectedObject.texNum;
+		objects[cur_selection].color = selectedObject.color;
+		objects[cur_selection].scale = glm::vec3(selectedObject.scaleX, selectedObject.scaleY, selectedObject.scaleZ);
+		objects[cur_selection].rotAngle = glm::vec3(selectedObject.roll, selectedObject.pitch, selectedObject.yaw);
 
 		while (SDL_PollEvent(&windowEvent)){  //inspect all events in the queue
 			if (windowEvent.type == SDL_QUIT) quit = true;
@@ -495,7 +459,7 @@ int main(int argc, char *argv[]){
 
 			//SJG: Use key input to change the state of the object
 			//     We can use the ".mod" flag to see if modifiers such as shift are pressed
-			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_1){ //If 0 is pressed
+			/*if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_1){ //If 0 is pressed
 				model_num = 0; //teapot
 				if(selected){
 					objects[cur_selection].numVerts = models[model_num].numVerts;
@@ -534,11 +498,11 @@ int main(int argc, char *argv[]){
 				if(selected){
 					objects[cur_selection].texNum = tex_num;
 				}
-			}
+			}*/
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_SPACE){ //If "space" is pressed
-				obj = Object(player.pos + 2.f*fwd, glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), glm::vec3(0,0,0), models[model_num].start, models[model_num].numVerts, tex_num, glm::vec3(1,0,0), 'w');
+				obj = Object(player.pos + rayCast(mouse_x, mouse_y, player.pos), glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), glm::vec3(0,0,0), models[model_num].start, models[model_num].numVerts, tex_num, glm::vec3(1,0,0), 'w');
 				objects.push_back(obj);
-				selected = true;
+				//selected = true;
 				cur_selection = objects.size() - 1;
 			}
 			/*if (windowEvent.type == SDL_MOUSEBUTTONUP){ //If "g" is pressed
@@ -636,8 +600,10 @@ int main(int argc, char *argv[]){
 					//cur_key = pickUpKey(player.pos);
 					//cur_door = unlockDoor(player.pos);
 					//pickUp(player.pos);
-					if(!selected)
-						cur_selection = pickUp(start_pos);
+					if(!selected){
+						cur_selection = pickUp();
+						start_pos = objects[cur_selection].pos;
+					}
 				}
 				if(mouse & SDL_BUTTON(SDL_BUTTON_RIGHT));
 				else {
@@ -717,7 +683,8 @@ int main(int argc, char *argv[]){
 				//printf("Mouse ray position: (%f, %f, %f)\n", mouse_ray.x, mouse_ray.y, mouse_ray.z);
 				//objects[cur_selection].pos = start_pos + rayCast(mouse_x, mouse_y, player.pos);// + 2.f*glm::vec3(fwd.x, fwd.y, fwd.z);
 				//objects[cur_selection].pos = hitIntersect(objects[cur_selection]);
-				objects[cur_selection].pos = player.pos + rayCast(mouse_x, mouse_y, player.pos);
+				objects[cur_selection].pos = start_pos + float((player.pos - start_pos - objects[cur_selection].pos).length()) * rayCast(mouse_x, mouse_y, player.pos);
+				start_pos += 2.f*move*time_past;
 			}
 			else if(selected && scaling && !rotating){
 				objects[cur_selection].scale += 0.01*(turn_x + turn_y)/2.0;
@@ -1362,7 +1329,7 @@ glm::vec3 hitIntersect(Object obj){ //use only if hit = true
 	}
 }*/
 
-int pickUp(glm::vec3 &start_pos){
+int pickUp(){
 	float min_dist = INFINITY;
 	for(int i = 0; i < objects.size(); i++){
 		float dist = (objects[i].pos - player.pos).length();
@@ -1374,7 +1341,7 @@ int pickUp(glm::vec3 &start_pos){
 				//objects[i].pos = player.pos + rayCast(mouse_x, mouse_y);
 				objects[i].isSelected = true;
 				selected = true;
-				start_pos = objects[i].pos;
+				//start_pos = objects[i].pos;
 				//printf("\nObject type: %c\n", objects[i].type);
 				return i;
 			}
