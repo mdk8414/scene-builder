@@ -1,5 +1,5 @@
-//Multi-Object, Multi-Texture Example
-//Stephen J. Guy, 2021
+//Scene Builder
+//Michael Karb, Kevin Bradt 2021
 
 //This example demonstrates:
 // Loading multiple models (a cube and a knot)
@@ -39,10 +39,6 @@ const char* INSTRUCTIONS =
 #include <cstdio>
 
 #define GLM_FORCE_RADIANS
-#include <GLUT/glut.h>
-//#include ""
-
-
 
 #include "Object.h"
 
@@ -69,32 +65,32 @@ struct Color{
 
 class Selected{
 public:
-	Object* object_ptr = nullptr;
-	glm::vec3 color = glm::vec3();
-	float scaleX = 1.0;
-	float scaleY = 1.0;
-	float scaleZ = 1.0;
-	float yaw = 0.0;
-	float pitch = 0.0;
-	float roll = 0.0;
-	int texNum = -1;
-	int modelNum = 0;
+	Object* object_ptr;
+	glm::vec3 color;
+	float scaleX;
+	float scaleY;
+	float scaleZ;
+	float yaw;
+	float pitch;
+	float roll;
+	int texNum;
+	int modelNum;
+
+	Selected(){
+		object_ptr = nullptr;
+		color = glm::vec3();
+		scaleX = 1.0;
+		scaleY = 1.0;
+		scaleZ = 1.0;
+		yaw = 0.0;
+		pitch = 0.0;
+		roll = 0.0;
+		texNum = -1;
+		modelNum = 0;
+	}
 };
 
-Selected selectedObject;/*
-selectedObject.object_ptr = nullptr;
-selectedObject.color = Color();
-selectedObject.scaleX = 1.0;
-selectedObject.scaleY = 1.0;
-selectedObject.scaleZ = 1.0;
-selectedObject.yaw = 0.0;
-selectedObject.pitch = 0.0;
-selectedObject.roll = 0.0;
-selectedObject.texNum = -1;
-selectedObject.modelNum = 0;*/
-//int startVert = 0;
-
-//int startVert = 0;
+Selected selectedObject;
 
 class Model{
 
@@ -117,8 +113,6 @@ public:
         numVerts = numLines/8;
         modelFile.close();
 
-	//	model.start = startVert;
-	//	startVert += numVerts;
     }
 
 };
@@ -173,15 +167,10 @@ float rand01(){
 
 int texturedShader;
 
-void drawGeometry(int shaderProgram, int model1_start, int model1_numVerts, int model2_start, int model2_numVerts);
-//void draw(int shaderProgram, int model_start, int model_numVerts, int texNum, glm::vec3 pos, glm::vec3 scale);
 void draw(int shaderProgram, Object obj, int texNum, glm::vec3 color);
 void loadMap(string fileName);
 void loadVictoryMap();
 bool canWalk(float x, float y);
-int pickUpKey(glm::vec3 pos);
-int unlockDoor(glm::vec3 pos);
-void goalReached();
 int pickUp();
 glm::vec3 rayCast(int mouse_x, int mouse_y, glm::vec3 pos);
 bool rayPlaneIntersection(Object obj);
@@ -189,8 +178,6 @@ bool raySphereIntersection(Object obj);
 float distToSqr(glm::vec3 vec);
 glm::vec3 hitIntersect(Object obj);
 float hitT(Object obj);
-//void mouse_click(int button, int state, int x, int y);
-//void mouse_move(int x, int y);
 
 int main(int argc, char *argv[]){
 	SDL_Init(SDL_INIT_VIDEO);  //Initialize Graphics (for OpenGL)
@@ -228,7 +215,7 @@ int main(int argc, char *argv[]){
 	ImGui_ImplOpenGL3_Init("#version 150");
 
 	bool show_demo_window = true;
-	bool show_another_window = false;
+	//bool show_another_window = false;
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 	// End IMGUI setup
 
@@ -371,15 +358,12 @@ int main(int argc, char *argv[]){
 	glm::vec3 move;
 	glm::vec3 forward = glm::vec3(0,0,-1);
 	float prev_time = 0;
-	float prev_y;
-	bool jumping = false;
-	bool falling = false;
+	//float prev_y;
+	//bool jumping = false;
+	//bool falling = false;
 	Object obj;
 	int model_num = 0;
 	int tex_num = 0;
-	//turn_x = 0;
-	//glutMouseFunc(mouse_click);
-	//glutPassiveMotionFunc(mouse_move);
 	while (!quit){
 		move = glm::vec3(0,0,0);
 		turn_x = 0;
@@ -505,17 +489,6 @@ int main(int argc, char *argv[]){
 				//selected = true;
 				cur_selection = objects.size() - 1;
 			}
-			/*if (windowEvent.type == SDL_MOUSEBUTTONUP){ //If "g" is pressed
-				if(!selected)
-					pickUp();
-				
-				if(selected){
-					selected = false;
-					for(int i = 0; i < objects.size(); i++){
-						objects[i].isSelected = false;
-					}
-				}
-			}*/
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_c){ //If "c" is pressed
 				selected = false;
 				for(int i = 0; i < objects.size(); i++){
@@ -563,14 +536,6 @@ int main(int argc, char *argv[]){
 					prev_y = player.pos.y;
 				}
 			}*/
-			/*if (state[SDL_SCANCODE_G] && state[SDL_KEYUP]) {
-				Object wall = Object(player.pos + 2.f*fwd, glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), 0, models[1].start, models[1].numVerts, 1, glm::vec3(1,0,0), 'w');
-				int x = (int) floorf(wall.pos.x + mapWidth / 2.f);
-				int z = (int) floorf(wall.pos.z + mapHeight / 2.f);
-				map[x + z * mapWidth] = wall;
-				objects.push_back(map[x + z*mapWidth]);
-				usleep(20000);
-			}*/
 
 			cur_time = SDL_GetTicks()/1000.f;
 			time_past = cur_time - prev_time;
@@ -597,8 +562,6 @@ int main(int argc, char *argv[]){
 					//usleep(10000);
 				}
 				if(mouse & SDL_BUTTON(SDL_BUTTON_LEFT)){
-					//cur_key = pickUpKey(player.pos);
-					//cur_door = unlockDoor(player.pos);
 					//pickUp(player.pos);
 					if(!selected){
 						cur_selection = pickUp();
@@ -646,7 +609,6 @@ int main(int argc, char *argv[]){
 			glUniform1i(glGetUniformLocation(texturedShader, "tex1"), 1);
 
 			glBindVertexArray(vao);
-			//drawGeometry(texturedShader, startVertTeapot, numVertsTeapot, startVertKnot, numVertsKnot);
 			//glm::vec3 playerPos = glm::vec3(mapStart.x, mapStart.y, mapStart.z) + forward;
 			glm::vec3 playerPos = player.pos;
 			glm::vec3 newPos = player.pos + 2.f*move*time_past;
@@ -672,17 +634,12 @@ int main(int argc, char *argv[]){
 					}
 				}
 			}
-			glm::vec3 mouse_ray = rayCast(mouse_x, mouse_y, player.pos);
+			//glm::vec3 mouse_ray = rayCast(mouse_x, mouse_y, player.pos);
 			if(selected && !scaling && !rotating){
-				//start_pos = isZero(turn_x + turn_y)*mouse_ray;
-				//glm::vec3 intersect = hitIntersect(objects[cur_selection]);
 				/*if(raySphereIntersection(objects[cur_selection])){
 					printf("Object start position: (%f, %f, %f)\n", start_pos.x, start_pos.y, start_pos.z);
 					printf("Object intersect position: (%f, %f, %f)\n", intersect.x, intersect.y, intersect.z);
 				}*/
-				//printf("Mouse ray position: (%f, %f, %f)\n", mouse_ray.x, mouse_ray.y, mouse_ray.z);
-				//objects[cur_selection].pos = start_pos + rayCast(mouse_x, mouse_y, player.pos);// + 2.f*glm::vec3(fwd.x, fwd.y, fwd.z);
-				//objects[cur_selection].pos = hitIntersect(objects[cur_selection]);
 				objects[cur_selection].pos = start_pos + float((player.pos - start_pos - objects[cur_selection].pos).length()) * rayCast(mouse_x, mouse_y, player.pos);
 				start_pos += 2.f*move*time_past;
 			}
@@ -712,10 +669,7 @@ int main(int argc, char *argv[]){
 
 
 			/// JUMPING ///
-
-			/*for(int i = 0; i < sizeof(*map) / sizeof(map[0]); i++){
-				draw(texturedShader, map[i], map[i].tex(), map[i].color);
-			}*/
+			/*
 			if(jumping && playerPos.y - prev_y <= 0.5){
 				playerPos.y += 0.025;
 			}
@@ -728,23 +682,18 @@ int main(int argc, char *argv[]){
 			}
 			if(falling && playerPos.y - prev_y <= 0 ){
 				falling = false;
-			}
+			}*/
 			player = Object(playerPos, glm::vec3(0.2,0.2,0.2), glm::vec3(0,1,0), playerAng, models[0].start, models[0].numVerts, 0, color, 'p');
 			//draw(texturedShader, player, 0, player.color);
 
-			goalReached();
 			SDL_GL_SwapWindow(window); //Double buffering
 		}
 		else{
-			//string victory = "Victory!";
-			//objects.clear();
 			// Clear the screen to default color
 			glClearColor(.2f, 0.4f, 0.8f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			glUseProgram(texturedShader);
-
-			//printf("\n%f\n", timePast);
 
 			glm::mat4 view = glm::lookAt(
 			glm::vec3(0.f, 30.f, 0.0f),  //Cam Position
@@ -797,20 +746,7 @@ int main(int argc, char *argv[]){
 }
 
 void draw(int shaderProgram, Object obj, int texNum, glm::vec3 color){
-	
-	if(obj.type >= 'a' && obj.type <= 'f'){
-		if(have_keys[obj.type - 97]){
-			//printf("%c", obj.type);
-			//printf("\njoe mama\n");
-			//float angle = atan(fwd.x / fwd.z);
-			obj = Object(player.pos + fwd + glm::vec3(0,0.35,0), glm::vec3(0.1,0.1,0.1), obj.rotAxis, glm::vec3(0,0,0), obj.index, obj.numVerts, obj.texNum, obj.color, obj.type);
-			//obj.pos = player.pos + fwd;
-		}
-	}
-	
-	//printf("\ncarry: %d\n", carry);
 	GLint uniColor = glGetUniformLocation(shaderProgram, "inColor");
-	//glm::vec3 colVec(colR,colG,colB);
 	glUniform3fv(uniColor, 1, glm::value_ptr(color));
       
   	GLint uniTexID = glGetUniformLocation(shaderProgram, "texID");
@@ -826,7 +762,6 @@ void draw(int shaderProgram, Object obj, int texNum, glm::vec3 color){
 	model = glm::rotate(model, obj.rotAngle.y, glm::vec3(0,1,0));
 	model = glm::rotate(model, obj.rotAngle.z, glm::vec3(0,0,1));
 
-	//model = glm::scale(model,2.f*glm::vec3(1.f,1.f,0.5f)); //scale example
 	glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 	//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
 	glUniform1i(uniTexID, texNum);
@@ -978,14 +913,11 @@ void loadMap(string fileName){
 			int index = i * mapWidth + j;
 			in >> env;
 			if(env == 'W'){		//wall
-				//int texturedShader = InitShader("textured-Vertex.glsl", "textured-Fragment.glsl");
 				glm::vec3 pos = glm::vec3(j - mapWidth / 2.0f + 0.5f, 0.5f, i + 0.5f - mapHeight/2.0f);
 				glm::vec3 color = glm::vec3(0.5,0.5,0.5);
 				Object wall = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), glm::vec3(0,0,0), models[1].start, models[1].numVerts, 1, color, 'w');
 				map[index] = wall;
 				objects.push_back(map[index]);
-				//blocks.push_back(wall);
-				//draw(texturedShader, wall, 1);
 			}
 			else if(env == '0'){	//floor
 				glm::vec3 pos = glm::vec3(j - mapWidth / 2.0f + 0.5f, -0.5f, i + 0.5f - mapHeight/2.0f);
@@ -1024,7 +956,6 @@ void loadMap(string fileName){
 				else if(env == 'F') color = glm::vec3(0,1,0);
 				Object door = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), glm::vec3(0,0,0), models[1].start, models[1].numVerts, -1, color, env);
 				objects.push_back(door);
-				//blocks.push_back(door);
 				map[index] = door;
 			}
 			else if(env >= 'a' && env <= 'f'){	//keys
@@ -1047,16 +978,7 @@ void loadMap(string fileName){
 		}
 	}
 
-	/*for(int i = 0; i < mapWidth*mapHeight; i++){
-		if(i % mapWidth == 0){
-			printf("%c\n", map[i].type);
-		}
-		else{
-			printf("%c ", map[i].type);
-		}
-	}*/
-
-	///BORDER WALLS FOR LATER///
+	///BORDER WALLS FOR MAP///
 	/*for(int i = 0; i < mapHeight+2; i++){
 		glm::vec3 pos1 = glm::vec3(mapWidth / 2.0f + 1.f, 0.5f, i + 0.5f - mapHeight/2.0f);
 		glm::vec3 pos2 = glm::vec3(-mapWidth / 2.0f - 1.f, 0.5f, i + 0.5f - mapHeight/2.0f);
@@ -1081,21 +1003,15 @@ void loadVictoryMap(){
 	ifstream in;
 	in.open("maps/victory.txt");
 	in >> mapWidth >> mapHeight;
-	//map = new Object[mapHeight * mapWidth];
 	char env;
 	for(int i = 0; i < mapHeight; i++){
 		for(int j = 0; j < mapWidth; j++){
-			//int index = i * mapWidth + j;
 			in >> env;
 			if(env == 'W'){		//wall
-				//int texturedShader = InitShader("textured-Vertex.glsl", "textured-Fragment.glsl");
 				glm::vec3 pos = glm::vec3(j - mapWidth / 2.0f + 0.5f, 0.5f, i + 0.5f - mapHeight/2.0f);
 				glm::vec3 color = glm::vec3(0.5,0.5,0.5);
 				Object wall = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), glm::vec3(0,0,0), models[1].start, models[1].numVerts, 1, color, 'w');
 				victoryMap.push_back(wall);
-				//blocks.push_back(wall);
-				//map[index] = wall;
-				//draw(texturedShader, wall, 1);
 			}
 		}
 	}
@@ -1103,7 +1019,6 @@ void loadVictoryMap(){
 
 bool canWalk(float x, float z){
 	//float playerRadius = 0.002;
-	//if(x > mapWidth/2.f + 0.5f || z > mapHeight/2.f + 0.5f || x < -mapWidth/2.f - 0.5f || z < -mapHeight/2.f - 0.5f) return false;
 	if(abs(x - mapWidth/2.f) < 0.1f || abs(z - mapHeight/2.f) < 0.1f || abs(x + mapWidth/2.f) < 0.1f || abs(z + mapHeight/2.f) < 0.1f) return false;
 
 	for(int i = 0; i < objects.size(); i++){
@@ -1113,103 +1028,6 @@ bool canWalk(float x, float z){
 	}
 	return true;
 }
-
-int pickUpKey(glm::vec3 pos){
-	int x = (int) floorf(pos.x + mapWidth / 2.f);
-	int z = (int) floorf(pos.z + mapHeight / 2.f);
-	char keyChar = map[x + z * mapWidth].type;
-	int num = 0;
-	if(keyChar >= 'a' && keyChar <= 'f'){
-		//printf("\nin here\n");
-		//if(!carry){
-			//printf("\nno here\n");
-		if(keyChar == 'a'){ 
-			//printf("\nayyyyy\n");
-			have_keys[0] = true;
-			num = 0;
-		}
-		else if(keyChar == 'b'){
-			//printf("\nbeeee\n");
-			have_keys[1] = true;
-			num = 1;
-		}
-		else if(keyChar == 'c'){
-			//printf("\ncccccccc\n");
-			have_keys[2] = true;
-			num = 2;
-		}
-		else if(keyChar == 'd'){
-			have_keys[3] = true;
-			num = 3;
-		}
-		else if(keyChar == 'e'){
-			have_keys[4] = true;
-			num = 4;
-		}
-		else if(keyChar == 'f'){
-			have_keys[5] = true;
-			num = 5;
-		}
-		//carry = true;
-		//}
-	}
-	//map[x + z * mapWidth].pos = player.pos;
-	return num;
-}
-
-int unlockDoor(glm::vec3 pos){
-	int x = (int) floorf(pos.x + mapWidth / 2.f + fwd.x);
-	int z = (int) floorf(pos.z + mapHeight / 2.f + fwd.z);
-	char doorChar = map[x + z * mapWidth].type;
-	int num = 0;
-	if(doorChar >= 'A' && doorChar <= 'F'){
-		if(doorChar == 'A' && have_keys[0]){ 
-			doors[0] = true;
-			num = 0;
-		}
-		else if(doorChar == 'B' && have_keys[1]){
-			doors[1] = true;
-			num = 1;
-		}
-		else if(doorChar == 'C' && have_keys[2]){
-			doors[2] = true;
-			num = 2;
-		}
-		else if(doorChar == 'D' && have_keys[3]){
-			doors[3] = true;
-			num = 3;
-		}
-		else if(doorChar == 'E' && have_keys[4]){
-			doors[4] = true;
-			num = 4;
-		}
-		else if(doorChar == 'F' && have_keys[5]){
-			doors[5] = true;
-			num = 5;
-		}
-	}
-	return num;
-}
-
-void goalReached(){
-	int x = (int) floorf(player.pos.x + mapWidth / 2.f);
-	int z = (int) floorf(player.pos.z + mapHeight / 2.f);
-	char type = map[x + z * mapWidth].type;
-	if(type == 'g'){
-		goal = true;
-	}
-}
-
-/*void pickUp(glm::vec3 pos){
-	int x = (int) floorf(pos.x + mapWidth / 2.f);
-	int z = (int) floorf(pos.z + mapHeight / 2.f);
-	char keyChar = map[x + z * mapWidth].type;
-	if(keyChar != 'z'){
-		map[x + z * mapWidth].pos = player.pos + 2.f*fwd;
-	}
-	//map[x + z * mapWidth].pos = player.pos;
-	//return num;
-}*/
 
 glm::vec3 rayCast(int mouse_x, int mouse_y, glm::vec3 pos){
 	//Normalized device coords
@@ -1319,15 +1137,6 @@ glm::vec3 hitIntersect(Object obj){ //use only if hit = true
 		return glm::vec3();
 	}
 }
-
-/*void pickUp(){
-	for(int i = 0; i < objects.size(); i++){
-		if(objects[i].type != 'z' && player.pos.x - objects[i].pos.x < 1 && player.pos.y - objects[i].pos.y < 1 && player.pos.z - objects[i].pos.z < 1){
-			objects[i].pos = player.pos + fwd;
-			printf("\nObject type: %c\n", objects[i].type);
-		}
-	}
-}*/
 
 int pickUp(){
 	float min_dist = INFINITY;
