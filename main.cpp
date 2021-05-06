@@ -154,6 +154,10 @@ bool rotating = false;
 int cur_selection = -1;
 //std::vector<std::vector<Object>> objects;
 glm::vec3 fwd;
+ImVec4 back_color = ImVec4(0.2f, 0.4f, 0.8f, 1.0f);
+float ambient = 0.3;
+float spec = 1;
+float diff = 1;
 
 bool DEBUG_ON = true;
 GLuint InitShader(const char* vShaderFileName, const char* fShaderFileName);
@@ -168,6 +172,7 @@ float rand01(){
 int texturedShader;
 
 void draw(int shaderProgram, Object obj, int texNum, glm::vec3 color);
+void drawGUI(ImVec4 clear_color);
 void loadMap(string fileName);
 void loadVictoryMap();
 bool canWalk(float x, float y);
@@ -180,6 +185,7 @@ glm::vec3 hitIntersect(Object obj);
 float hitT(Object obj);
 
 int main(int argc, char *argv[]){
+	printf("\nLine 184\n");
 	SDL_Init(SDL_INIT_VIDEO);  //Initialize Graphics (for OpenGL)
 
 	//Ask SDL to get a recent version of OpenGL (3.2 or greater)
@@ -216,7 +222,7 @@ int main(int argc, char *argv[]){
 
 	bool show_demo_window = true;
 	//bool show_another_window = false;
-	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+	//ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 	// End IMGUI setup
 
 	//Here we will load two different model files 
@@ -318,7 +324,7 @@ int main(int argc, char *argv[]){
 	//GL_STATIC_DRAW means we won't change the geometry, GL_DYNAMIC_DRAW = geometry changes infrequently
 	//GL_STREAM_DRAW = geom. changes frequently.  This effects which types of GPU memory is used
 	
-	texturedShader = InitShader("textured-Vertex.glsl", "textured-Fragment.glsl");	
+	texturedShader = InitShader("textured-Vertex.glsl", "fragment_test.glsl");	
 	
 	//Tell OpenGL how to set fragment shader input 
 	GLint posAttrib = glGetAttribLocation(texturedShader, "position");
@@ -341,6 +347,7 @@ int main(int argc, char *argv[]){
 	GLint uniView = glGetUniformLocation(texturedShader, "view");
 	GLint uniProj = glGetUniformLocation(texturedShader, "proj");
 
+
 	glBindVertexArray(0); //Unbind the VAO in case we want to create a new one	
                        
 	
@@ -362,73 +369,22 @@ int main(int argc, char *argv[]){
 	//bool jumping = false;
 	//bool falling = false;
 	Object obj;
-	int model_num = 0;
-	int tex_num = 0;
+	//int model_num = 0;
+	//int tex_num = 0;
 	while (!quit){
 		move = glm::vec3(0,0,0);
 		turn_x = 0;
 		turn_y = 0;
 		fwd = forward;
 
-		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplSDL2_NewFrame(window);
-		ImGui::NewFrame();
-		if (show_demo_window) {
-			//ImGui::ShowDemoWindow(&show_demo_window);
-			bool start = true;
-			ImGui::Begin("Selection Menu", &start);
-
-			ImGui::Text("Scale & Rotate");
-			ImGui::SliderFloat("Scale X", &(selectedObject.scaleX), 0.0f, 10.0f);
-			ImGui::SliderFloat("Scale Y", &(selectedObject.scaleY), 0.0f, 10.0f);
-			ImGui::SliderFloat("Scale Z", &(selectedObject.scaleZ), 0.0f, 10.0f);
-			ImGui::SliderFloat("Roll", &(selectedObject.roll), -3.14f, 3.14f);
-			ImGui::SliderFloat("Pitch", &(selectedObject.pitch), -3.14f, 3.14f);
-			ImGui::SliderFloat("Yaw", &(selectedObject.yaw), -3.14f, 3.14f);
-
-			ImGui::Text("Color & Texture");
-			ImGui::ColorEdit3("Color", (float*)&clear_color);
-			selectedObject.color = glm::vec3(clear_color.x, clear_color.y, clear_color.z);
-			const char* textureList[] = {"None", "Wood", "Brick"};
-			if (ImGui::Button("Texture"))
-				ImGui::OpenPopup("texture_list");
-			ImGui::SameLine();
-			ImGui::TextUnformatted(textureList[selectedObject.texNum+1]);
-			if (ImGui::BeginPopup("texture_list")) {
-				for (int i = 0; i < IM_ARRAYSIZE(textureList); i++) {
-					if (ImGui::Selectable(textureList[i])) {
-						selectedObject.texNum = i - 1;
-						printf("Selected tex: %s texNum: %i\n", textureList[i], selectedObject.texNum);
-					}
-				}
-				ImGui::EndPopup();
-			}
-
-			ImGui::Text("Model Selection");
-			const char* modelList[] = {"Teapot", "Cube", "Knot", "Sphere"};
-			if (ImGui::Button("Model"))
-				ImGui::OpenPopup("model_list");
-			ImGui::SameLine();
-			ImGui::TextUnformatted(modelList[selectedObject.modelNum]);
-			if (ImGui::BeginPopup("model_list")) {
-				for (int i = 0; i < IM_ARRAYSIZE(modelList); i++) {
-					if (ImGui::Selectable(modelList[i])) {
-						selectedObject.modelNum = i;
-					}
-				}
-				ImGui::EndPopup();
-			}
-
-			ImGui::End();
+		if(cur_selection >= 0){
+			objects[cur_selection].numVerts = models[selectedObject.modelNum].numVerts;
+			objects[cur_selection].index = models[selectedObject.modelNum].start;
+			objects[cur_selection].texNum = selectedObject.texNum;
+			objects[cur_selection].color = selectedObject.color;
+			objects[cur_selection].scale = glm::vec3(selectedObject.scaleX, selectedObject.scaleY, selectedObject.scaleZ);
+			objects[cur_selection].rotAngle = glm::vec3(selectedObject.roll, selectedObject.pitch, selectedObject.yaw);
 		}
-		ImGui::Render();
-
-		objects[cur_selection].numVerts = models[selectedObject.modelNum].numVerts;
-		objects[cur_selection].index = models[selectedObject.modelNum].start;
-		objects[cur_selection].texNum = selectedObject.texNum;
-		objects[cur_selection].color = selectedObject.color;
-		objects[cur_selection].scale = glm::vec3(selectedObject.scaleX, selectedObject.scaleY, selectedObject.scaleZ);
-		objects[cur_selection].rotAngle = glm::vec3(selectedObject.roll, selectedObject.pitch, selectedObject.yaw);
 
 		while (SDL_PollEvent(&windowEvent)){  //inspect all events in the queue
 			if (windowEvent.type == SDL_QUIT) quit = true;
@@ -484,16 +440,17 @@ int main(int argc, char *argv[]){
 				}
 			}*/
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_SPACE){ //If "space" is pressed
-				obj = Object(player.pos + rayCast(mouse_x, mouse_y, player.pos), glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), glm::vec3(0,0,0), models[model_num].start, models[model_num].numVerts, tex_num, glm::vec3(1,0,0), 'w');
+				obj = Object(player.pos + rayCast(mouse_x, mouse_y, player.pos), glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), glm::vec3(0,0,0), models[selectedObject.modelNum].start, models[selectedObject.modelNum].numVerts, selectedObject.texNum, glm::vec3(1,0,0), 'w');
 				objects.push_back(obj);
 				//selected = true;
-				cur_selection = objects.size() - 1;
+				//cur_selection = objects.size() - 1;
 			}
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_c){ //If "c" is pressed
 				selected = false;
 				for(int i = 0; i < objects.size(); i++){
 					objects[i].isSelected = false;
 				}
+				cur_selection = -1;
 			}
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_m) {
 				show_demo_window = !show_demo_window;
@@ -536,7 +493,6 @@ int main(int argc, char *argv[]){
 					prev_y = player.pos.y;
 				}
 			}*/
-
 			cur_time = SDL_GetTicks()/1000.f;
 			time_past = cur_time - prev_time;
 			prev_time = cur_time;
@@ -566,6 +522,7 @@ int main(int argc, char *argv[]){
 					if(!selected){
 						cur_selection = pickUp();
 						start_pos = objects[cur_selection].pos;
+						selectedObject.color = objects[cur_selection].color;
 					}
 				}
 				if(mouse & SDL_BUTTON(SDL_BUTTON_RIGHT));
@@ -579,11 +536,8 @@ int main(int argc, char *argv[]){
 			}
 
 			// Clear the screen to default color
-			glClearColor(.2f, 0.4f, 0.8f, 1.0f);
+			glClearColor(back_color.x, back_color.y, back_color.z, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
 			glUseProgram(texturedShader);
 
 			//printf("\n%f\n", timePast);
@@ -621,18 +575,6 @@ int main(int argc, char *argv[]){
 
 			for(int i = 0; i < objects.size(); i++){
 				draw(texturedShader, objects[i], objects[i].tex(), objects[i].color);
-				if(objects[i].type >= 'A' && objects[i].type <= 'F'){
-					if(doors[objects[i].type - 65]){
-						glm::vec3 pos;
-						if(objects[i].pos.y > -0.5f)
-							pos = glm::vec3(objects[i].pos.x, objects[i].pos.y - 0.01f, objects[i].pos.z);
-						//glm::vec3 color = glm::vec3(0.5,0.5,0.5);
-						objects[i] = Object(pos, glm::vec3(1,1,1), glm::vec3(1,1,1), glm::vec3(0,0,0), models[1].start, models[1].numVerts, -1, objects[i].color, objects[i].type);
-						//doors[cur_door] = false;
-						//have_keys[cur_door] = false;
-						//obj.pos = glm::vec3(0,-10,0);
-					}
-				}
 			}
 			//glm::vec3 mouse_ray = rayCast(mouse_x, mouse_y, player.pos);
 			if(selected && !scaling && !rotating){
@@ -640,8 +582,10 @@ int main(int argc, char *argv[]){
 					printf("Object start position: (%f, %f, %f)\n", start_pos.x, start_pos.y, start_pos.z);
 					printf("Object intersect position: (%f, %f, %f)\n", intersect.x, intersect.y, intersect.z);
 				}*/
-				objects[cur_selection].pos = start_pos + float((player.pos - start_pos - objects[cur_selection].pos).length()) * rayCast(mouse_x, mouse_y, player.pos);
-				start_pos += 2.f*move*time_past;
+				//objects[cur_selection].pos = start_pos + float((player.pos - start_pos - objects[cur_selection].pos).length()) * rayCast(mouse_x, mouse_y, player.pos);
+				//start_pos += 2.f*move*time_past;
+				objects[cur_selection].pos = player.pos + rayCast(mouse_x, mouse_y, player.pos);
+
 			}
 			else if(selected && scaling && !rotating){
 				objects[cur_selection].scale += 0.01*(turn_x + turn_y)/2.0;
@@ -655,10 +599,6 @@ int main(int argc, char *argv[]){
 					//objects[cur_selection].rotAxis = glm::vec3(0,0,1);
 					objects[cur_selection].rotAngle.y += 0.1*turn_y;
 				}
-				/*else if(turn_x && turn_y){
-					//objects[cur_selection].rotAxis = glm::vec3(1,1,1);
-					objects[cur_selection].rotAngle += 0.1*turn_y;
-				}*/
 			}
 			else if(selected && scaling && rotating){
 				glm::vec3 mouse_ray = rayCast(mouse_x, mouse_y, start_pos);
@@ -685,6 +625,15 @@ int main(int argc, char *argv[]){
 			}*/
 			player = Object(playerPos, glm::vec3(0.2,0.2,0.2), glm::vec3(0,1,0), playerAng, models[0].start, models[0].numVerts, 0, color, 'p');
 			//draw(texturedShader, player, 0, player.color);
+
+			ImGui_ImplOpenGL3_NewFrame();
+			ImGui_ImplSDL2_NewFrame(window);
+			ImGui::NewFrame();
+			if (show_demo_window) {
+				drawGUI(ImVec4(selectedObject.color.r, selectedObject.color.g, selectedObject.color.b, 1.00f));
+			}
+			ImGui::Render();
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 			SDL_GL_SwapWindow(window); //Double buffering
 		}
@@ -765,13 +714,75 @@ void draw(int shaderProgram, Object obj, int texNum, glm::vec3 color){
 	glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 	//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
 	glUniform1i(uniTexID, texNum);
+	GLint ambience = glGetUniformLocation(shaderProgram, "ambient");
+	glUniform1f(ambience, ambient);
+	GLint specularity = glGetUniformLocation(shaderProgram, "specularity");
+	glUniform1f(specularity, spec);
+	GLint diffuse = glGetUniformLocation(shaderProgram, "diffuse");
+	glUniform1f(diffuse, diff);
 
   //Draw an instance of the model (at the position & orientation specified by the model matrix above)
 	glDrawArrays(GL_TRIANGLES, obj.getIndex(), obj.getNumVerts()); //(Primitive Type, Start Vertex, Num Verticies)
 
 }
 
+void drawGUI(ImVec4 clear_color){
+	//ImGui::ShowDemoWindow(&show_demo_window);
+	bool start = true;
+	ImGui::Begin("Selection Menu", &start);
 
+	ImGui::Text("Scale & Rotate");
+	ImGui::SliderFloat("Scale X", &(selectedObject.scaleX), 0.0f, 10.0f);
+	ImGui::SliderFloat("Scale Y", &(selectedObject.scaleY), 0.0f, 10.0f);
+	ImGui::SliderFloat("Scale Z", &(selectedObject.scaleZ), 0.0f, 10.0f);
+	ImGui::SliderFloat("Roll", &(selectedObject.roll), -3.14f, 3.14f);
+	ImGui::SliderFloat("Pitch", &(selectedObject.pitch), -3.14f, 3.14f);
+	ImGui::SliderFloat("Yaw", &(selectedObject.yaw), -3.14f, 3.14f);
+
+	ImGui::Text("Lighting");
+	ImGui::SliderFloat("Ambient", &(ambient), 0.0f, 2.0f);
+	ImGui::SliderFloat("Diffuse", &(diff), 0.0f, 5.0f);
+	ImGui::SliderFloat("Specularity", &(spec), 0.0f, 5.0f);
+
+	ImGui::Text("Background Color");
+	ImGui::ColorEdit3("Background Color", (float*)&back_color);
+	//back_color = glm::vec3(backgr_color.x, backgr_color.y, backgr_color.z);
+
+	ImGui::Text("Selected Object Color & Texture");
+	ImGui::ColorEdit3("Object Color", (float*)&clear_color);
+	selectedObject.color = glm::vec3(clear_color.x, clear_color.y, clear_color.z);
+
+	const char* textureList[] = {"None", "Wood", "Brick"};
+	if (ImGui::Button("Texture"))
+		ImGui::OpenPopup("texture_list");
+	ImGui::SameLine();
+	ImGui::TextUnformatted(textureList[selectedObject.texNum+1]);
+	if (ImGui::BeginPopup("texture_list")) {
+		for (int i = 0; i < IM_ARRAYSIZE(textureList); i++) {
+			if (ImGui::Selectable(textureList[i])) {
+				selectedObject.texNum = i - 1;
+				printf("Selected tex: %s texNum: %i\n", textureList[i], selectedObject.texNum);
+			}
+		}
+		ImGui::EndPopup();
+	}
+
+	ImGui::Text("Model Selection");
+	const char* modelList[] = {"Teapot", "Cube", "Knot", "Sphere"};
+	if (ImGui::Button("Model"))
+		ImGui::OpenPopup("model_list");
+	ImGui::SameLine();
+	ImGui::TextUnformatted(modelList[selectedObject.modelNum]);
+	if (ImGui::BeginPopup("model_list")) {
+		for (int i = 0; i < IM_ARRAYSIZE(modelList); i++) {
+			if (ImGui::Selectable(modelList[i])) {
+				selectedObject.modelNum = i;
+			}
+		}
+		ImGui::EndPopup();
+	}
+	ImGui::End();
+}
 
 // Create a NULL-terminated string by reading the provided file
 static char* readShaderSource(const char* shaderFile){
