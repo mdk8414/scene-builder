@@ -26,13 +26,13 @@ glm::mat4 Object::getTransform(){
     return transM * rotMx * rotMy * rotMz * scaleM;
 }
 
-int Object::getIndex(){
+/*int Object::getIndex(){
     return index;
 }
 
 int Object::getNumVerts(){
     return numVerts;
-}
+}*/
 
 int Object::tex(){
     return texNum;

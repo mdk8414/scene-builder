@@ -6,7 +6,7 @@
 class Object{
 public:
     glm::vec3 pos, scale, rotAxis, color;
-    int index, numVerts, texNum;
+    int modelNum, texNum;
     glm::vec3 rotAngle;
     char type;
     bool isSelected;
@@ -16,19 +16,17 @@ public:
         rotAxis = glm::vec3(1,1,1);
         color = glm::vec3(0,0,0);
         rotAngle = glm::vec3(0,0,0);
-        index = -1;
-        numVerts = 0;
+        modelNum = 0;
         texNum = -1;
         isSelected = false;
     }
 
-    Object(glm::vec3 p, glm::vec3 s, glm::vec3 ax, glm::vec3 a, int m, int nv, int tex, glm::vec3 col, char t){
+    Object(glm::vec3 p, glm::vec3 s, glm::vec3 ax, glm::vec3 a, int m, int tex, glm::vec3 col, char t){
         pos = p;
         scale = s;
         rotAxis = ax;
         rotAngle = a;
-        index = m;
-        numVerts = nv;
+        modelNum = m;
         texNum = tex;
         color = col;
         type = t;
@@ -40,7 +38,7 @@ public:
     glm::vec3 getAxis();
     glm::vec3 getAngle();
     glm::mat4 getTransform();
-    int getIndex();
-    int getNumVerts();
+    //int getIndex();
+    //int getNumVerts();
     int tex();
 };
