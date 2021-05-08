@@ -227,7 +227,7 @@ int main(int argc, char *argv[]){
 
 	//Create a context to draw in
 	SDL_GLContext context = SDL_GL_CreateContext(window);
-	//SDL_SetRelativeMouseMode(SDL_TRUE);
+	SDL_SetRelativeMouseMode(SDL_TRUE);
 	//Load OpenGL extentions with GLAD
 	if (gladLoadGLLoader(SDL_GL_GetProcAddress)){
 		printf("\nOpenGL loaded\n");
@@ -641,6 +641,10 @@ int main(int argc, char *argv[]){
 			ImGui::NewFrame();
 			if (show_demo_window) {
 				drawGUI(ImVec4(selectedObject.color.r, selectedObject.color.g, selectedObject.color.b, 1.00f));
+				SDL_SetRelativeMouseMode(SDL_FALSE);
+			}
+			else{
+				SDL_SetRelativeMouseMode(SDL_TRUE);
 			}
 			ImGui::Render();
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
