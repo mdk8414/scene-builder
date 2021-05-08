@@ -13,11 +13,17 @@ out vec3 vertNormal;
 out vec3 pos;
 out vec3 lightDir;
 out vec2 texcoord;
+out vec3 pointPoss[11];
+out float pointScales[11];
+out vec3 pointColors[11];
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 proj;
 uniform vec3 inColor;
+uniform float lightsScale[11];
+uniform vec3 lightsPos[11];
+uniform vec3 lightsColor[11];
 
 void main() {
    Color = inColor;
@@ -27,4 +33,10 @@ void main() {
    vec4 norm4 = transpose(inverse(view*model)) * vec4(inNormal,0.0);
    vertNormal = normalize(norm4.xyz);
    texcoord = inTexcoord;
+
+   for (int i = 0; i < 11; i++) {
+      pointPoss[i] = (view*vec4(lightsPos[i],1.0)).xyz;
+      pointColors[i] = lightsColor[i];
+      pointScales[i] = lightsScale[i];
+   }
 }

@@ -92,6 +92,25 @@ public:
 
 Selected selectedObject;
 
+class PointLight {
+public:
+	glm::vec3 position;
+	glm::vec3 color;
+	float intensity;
+	int id;
+
+	PointLight(glm::vec3 pos, glm::vec3 col, float tensity, int _id) {
+		position = pos;
+		color = col;
+		intensity = tensity;
+		id = _id;
+	}
+};
+
+std::vector<PointLight> lights;
+int numLights = 0;
+std::vector<const char*> lightIDs;
+
 class Model{
 
 public:
@@ -154,6 +173,12 @@ bool rotating = false;
 int cur_selection = -1;
 //std::vector<std::vector<Object>> objects;
 glm::vec3 fwd;
+
+ImVec4 newLight_color = ImVec4(1.0f,1.0f,1.0f,1.0f);
+float newLightPos[3] = {1.0f,1.0f,1.0f};
+float newLightIntensity = 1.0f;
+int selectedLight = 0;
+
 ImVec4 back_color = ImVec4(0.2f, 0.4f, 0.8f, 1.0f);
 float ambient = 0.3;
 float spec = 1;
@@ -185,6 +210,8 @@ bool raySphereIntersection(Object obj);
 float distToSqr(glm::vec3 vec);
 glm::vec3 hitIntersect(Object obj);
 float hitT(Object obj);
+void Lights(int shaderProgram, std::vector<PointLight> light);
+void addLight(glm::vec3 pos, glm::vec3 color, float tensity);
 
 int main(int argc, char *argv[]){
 	printf("\nLine 184\n");
@@ -200,7 +227,7 @@ int main(int argc, char *argv[]){
 
 	//Create a context to draw in
 	SDL_GLContext context = SDL_GL_CreateContext(window);
-	
+	//SDL_SetRelativeMouseMode(SDL_TRUE);
 	//Load OpenGL extentions with GLAD
 	if (gladLoadGLLoader(SDL_GL_GetProcAddress)){
 		printf("\nOpenGL loaded\n");
@@ -326,7 +353,7 @@ int main(int argc, char *argv[]){
 	//GL_STATIC_DRAW means we won't change the geometry, GL_DYNAMIC_DRAW = geometry changes infrequently
 	//GL_STREAM_DRAW = geom. changes frequently.  This effects which types of GPU memory is used
 	
-	texturedShader = InitShader("textured-Vertex.glsl", "fragment_test.glsl");	
+	texturedShader = InitShader("textured-Vertex.glsl", "textured-Fragment.glsl");	
 	
 	//Tell OpenGL how to set fragment shader input 
 	GLint posAttrib = glGetAttribLocation(texturedShader, "position");
@@ -389,8 +416,6 @@ int main(int argc, char *argv[]){
 
 		while (SDL_PollEvent(&windowEvent)){  //inspect all events in the queue
 			if (windowEvent.type == SDL_QUIT) quit = true;
-			//List of keycodes: https://wiki.libsdl.org/SDL_Keycode - You can catch many special keys
-			//Scancode referes to a keyboard position, keycode referes to the letter (e.g., EU keyboards)
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_ESCAPE) 
 				quit = true; //Exit event loop
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_f){ //If "f" is pressed
@@ -398,48 +423,6 @@ int main(int argc, char *argv[]){
 				SDL_SetWindowFullscreen(window, fullscreen ? SDL_WINDOW_FULLSCREEN : 0); //Toggle fullscreen 
 			}
 
-			//SJG: Use key input to change the state of the object
-			//     We can use the ".mod" flag to see if modifiers such as shift are pressed
-			/*if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_1){ //If 0 is pressed
-				model_num = 0; //teapot
-				if(selected){
-					objects[cur_selection].numVerts = models[model_num].numVerts;
-					objects[cur_selection].index = models[model_num].start;
-				}
-			}
-			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_2){ //If 1 is pressed
-				model_num = 1; //cube
-				if(selected){
-					objects[cur_selection].numVerts = models[model_num].numVerts;
-					objects[cur_selection].index = models[model_num].start;
-				}
-			}
-			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_3){ //If 2 is pressed
-				model_num = 2; //knot
-				if(selected){
-					objects[cur_selection].numVerts = models[model_num].numVerts;
-					objects[cur_selection].index = models[model_num].start;
-				}
-			}
-			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_4){ //If 3 is pressed
-				model_num = 3; //sphere
-				if(selected){
-					objects[cur_selection].numVerts = models[model_num].numVerts;
-					objects[cur_selection].index = models[model_num].start;
-				}
-			}
-			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_5){
-				tex_num = 0; //wood
-				if(selected){
-					objects[cur_selection].texNum = tex_num;
-				}
-			}
-			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_6){
-				tex_num = 1; //brick
-				if(selected){
-					objects[cur_selection].texNum = tex_num;
-				}
-			}*/
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_SPACE){ //If "space" is pressed
 				obj = Object(player.pos + forward, glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), glm::vec3(0,0,0), selectedObject.modelNum, selectedObject.texNum, glm::vec3(1,0,0), 'w');
 				objects.push_back(obj);
@@ -590,6 +573,7 @@ int main(int argc, char *argv[]){
 			for(int i = 0; i < objects.size(); i++){
 				draw(texturedShader, objects[i], objects[i].tex(), objects[i].color);
 			}
+			Lights(texturedShader, lights);
 
 			glm::vec3 mouse_ray = rayCast(mouse_x, mouse_y, player.pos);
 			if(selected && !scaling && !rotating){
@@ -601,7 +585,7 @@ int main(int argc, char *argv[]){
 				//objects[cur_selection].pos = start_pos + float((mouse_ray - start_pos - objects[cur_selection].pos).length()) * rayCast(mouse_x, mouse_y, player.pos);
 				//glm::vec3 obj_offset = start_pos - mouse_ray;
 				//objects[cur_selection].pos = player.pos + rayCast(mouse_x, mouse_y, player.pos);
-				objects[cur_selection].pos = start_pos + float((player.pos - start_pos).length())*forward;
+				objects[cur_selection].pos = start_pos + float((player.pos - start_pos).length())*glm::normalize(mouse_ray);
 				//objects[cur_selection].pos.x = start_pos.x + cos(glm::radians(cam_yaw)) * cos(glm::radians(cam_pitch));
 				//objects[cur_selection].pos.y = start_pos.y + sin(glm::radians(cam_pitch));
 				//objects[cur_selection].pos.z = start_pos.z + sin(glm::radians(cam_yaw)) * cos(glm::radians(cam_pitch));
@@ -627,8 +611,8 @@ int main(int argc, char *argv[]){
 				objects[cur_selection].pos = start_pos; 
 			}
 
-			//Object laser = Object(playerPos, glm::vec3(0.001,0.001,5), glm::vec3(0,0,0), forward, 3, -1, glm::vec3(1,0,0), 'z');
-			//draw(texturedShader, laser, laser.texNum, laser.color);
+			Object laser = Object(playerPos + rayCast(mouse_x, mouse_y, player.pos), glm::vec3(0.01), glm::vec3(0,0,0), glm::vec3(0,0,0), 3, -1, glm::vec3(1,0,0), 'z');
+			draw(texturedShader, laser, laser.texNum, laser.color);
 
 			/*forward.x = cos(glm::radians(cam_yaw)) * cos(glm::radians(cam_pitch));
 			forward.y = sin(glm::radians(cam_pitch));
@@ -720,6 +704,40 @@ int main(int argc, char *argv[]){
 	return 0;
 }
 
+void Lights(int shaderProgram, std::vector<PointLight> lights) {
+	GLint positions = glGetUniformLocation(shaderProgram, "lightsPos");
+	GLint scales = glGetUniformLocation(shaderProgram, "lightsScale");
+	GLint colors = glGetUniformLocation(shaderProgram, "lightsColor");
+
+	glm::vec3 pos[11];
+	glm::vec3 col[11];
+	float scl[11];
+	for (int i = 0; i < 11; i++) {
+		if (i >= numLights) {
+			pos[i] = glm::vec3(0.0);
+			col[i] = glm::vec3(0.0);
+			scl[i] = 0.0f;
+		} else {
+			pos[i] = lights[i].position;
+			col[i] = lights[i].color;
+			scl[i] = lights[i].intensity;
+		}
+	}
+
+	/*glUniform3fv(positions, 11, glm::value_ptr(pos));
+	glUniform3fv(colors, 11, glm::value_ptr(col));
+	glUniform1fv(scales, 11, glm::value_ptr(scl));*/
+	glUniform3fv(positions,11, (const GLfloat*)pos);
+	glUniform3fv(colors,11, (const GLfloat*)col);
+	glUniform1fv(scales,11, scl);
+}
+
+void addLight(glm::vec3 pos, glm::vec3 color, float tensity) {
+	lights.push_back(PointLight(pos,color,tensity,numLights));
+	lightIDs.push_back((std::to_string(numLights)).c_str());
+	numLights++;
+}
+
 void draw(int shaderProgram, Object obj, int texNum, glm::vec3 color){
 	GLint uniColor = glGetUniformLocation(shaderProgram, "inColor");
 	glUniform3fv(uniColor, 1, glm::value_ptr(color));
@@ -806,6 +824,60 @@ void drawGUI(ImVec4 clear_color){
 			}
 		}
 		ImGui::EndPopup();
+	}
+
+	ImGui::Text("Lights");
+	/*bool lightsEsist = false;
+	if (numLights > 0) {
+		const char* lightList[lightIDs.size()] = 
+	}*/
+	ImGui::SliderFloat3("New Light Pos", newLightPos,-10.0f,10.0f);
+	/*ImGui::SliderFloat("New Light X", &newLightPos[0], -10.0f,10.0f);
+	ImGui::SameLine();
+	ImGui::SliderFloat("New Light Y", &newLightPos[1],-10.0f,10.0f);
+	ImGui::SameLine();
+	ImGui::SliderFloat("New Light Z", &newLightPos[2],-10.0f,10.0f);*/
+	ImGui::ColorEdit3("New Light Color", (float*)&newLight_color);
+	ImGui::SliderFloat("New Light Intensity", &newLightIntensity, 0.0f, 5.0f);
+	if (ImGui::Button("Add Light")) {
+			addLight(glm::vec3(newLightPos[0],newLightPos[1],newLightPos[2]),
+				glm::vec3(newLight_color.x,newLight_color.y,newLight_color.z), newLightIntensity);
+	}
+	if (numLights > 0) {
+		ImGui::Text("Select Light");
+		//const char* lightList[lights.size()];
+		const char* lightNums[11] = {"0","1","2","3","4","5","6","7","8","9","10"};
+		const char* lightList[lights.size()];
+		for (int i = 0; i < lights.size(); i++) {
+			lightList[i] = lightNums[i];
+		}
+		//std::copy(lightIDs.begin(), lightIDs.end(), lightList);
+		if (ImGui::Button("Light"))
+			ImGui::OpenPopup("light_list");
+		ImGui::SameLine();
+		ImGui::TextUnformatted(lightList[selectedLight]);
+		if (ImGui::BeginPopup("light_list")) {
+			for (int i = 0; i < IM_ARRAYSIZE(lightList); i++) {
+				if (ImGui::Selectable(lightList[i])) {
+					selectedLight = i;
+				}
+			}
+			ImGui::EndPopup();
+		}
+		float selectedLightPos[3] = {lights[selectedLight].position.x, lights[selectedLight].position.y, lights[selectedLight].position.z};
+		ImVec4 selectedLight_color = ImVec4(lights[selectedLight].color.x, lights[selectedLight].color.y, lights[selectedLight].color.z,1.0);
+		float selectedLightIntensity = lights[selectedLight].intensity;
+		ImGui::SliderFloat3("Selected Light Pos", selectedLightPos,-10.0f,10.0f);
+		/*ImGui::SliderFloat("Selected Light X", &selectedLightPos[0],-10.0f,10.0f);
+		ImGui::SameLine();
+		ImGui::SliderFloat("Selected Light Y", &selectedLightPos[1],-10.0f,10.0f);
+		ImGui::SameLine();
+		ImGui::SliderFloat("Selected Light Z", &selectedLightPos[2],-10.0f,10.0f);*/
+		ImGui::ColorEdit3("Selected Light Color", (float*)&selectedLight_color);
+		ImGui::SliderFloat("Selected Light Intensity", &selectedLightIntensity, 0.0f, 5.0f);
+		lights[selectedLight].position = glm::vec3(selectedLightPos[0],selectedLightPos[1],selectedLightPos[2]);
+		lights[selectedLight].color = glm::vec3(selectedLight_color.x,selectedLight_color.y,selectedLight_color.z);
+		lights[selectedLight].intensity = selectedLightIntensity;
 	}
 	ImGui::End();
 }
