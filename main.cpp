@@ -506,12 +506,14 @@ int main(int argc, char *argv[]){
 					if(!selected){
 						cur_selection = pickUp();
 						start_pos = objects[cur_selection].pos;
-						selectedObject.color = objects[cur_selection].color;
-						selectedObject.modelNum = objects[cur_selection].modelNum;
-						selectedObject.texNum = objects[cur_selection].texNum;
-						selectedObject.roll = objects[cur_selection].rotAngle.x;
-						selectedObject.pitch = objects[cur_selection].rotAngle.y;
-						selectedObject.yaw = objects[cur_selection].rotAngle.z;
+						if(cur_selection >= 0){
+							selectedObject.color = objects[cur_selection].color;
+							selectedObject.modelNum = objects[cur_selection].modelNum;
+							selectedObject.texNum = objects[cur_selection].texNum;
+							selectedObject.roll = objects[cur_selection].rotAngle.x;
+							selectedObject.pitch = objects[cur_selection].rotAngle.y;
+							selectedObject.yaw = objects[cur_selection].rotAngle.z;
+						}
 					}
 				}
 				if(mouse & SDL_BUTTON(SDL_BUTTON_RIGHT));
