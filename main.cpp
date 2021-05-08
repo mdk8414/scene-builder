@@ -458,18 +458,18 @@ int main(int argc, char *argv[]){
 		if(!goal){
 			const Uint8 *state = SDL_GetKeyboardState(NULL);
 			if (state[SDL_SCANCODE_UP] || state[SDL_SCANCODE_W]) {
-				move = glm::vec3(forward.x, forward.y, forward.z);
+				move = forward;
 				//printf("\nposition: (%f,%f,%f)\n", player.getPos().x, player.getPos().y, player.getPos().z);
 			}
 			if (state[SDL_SCANCODE_DOWN] || state[SDL_SCANCODE_S]) {
-				move = -1.f*glm::vec3(forward.x, forward.y, forward.z);
+				move = -1.f*forward;
 				//printf("\nposition: (%f,%f,%f)\n", player.getPos().x, player.getPos().y, player.getPos().z);
 			}
 			if (state[SDL_SCANCODE_RIGHT] || state[SDL_SCANCODE_D]) {
-				move = glm::cross(glm::vec3(forward.x, forward.y, forward.z), glm::vec3(0,1,0));
+				move = glm::cross(forward, glm::vec3(0,1,0));
 			}
 			if (state[SDL_SCANCODE_LEFT] || state[SDL_SCANCODE_A]) {
-				move = glm::cross(-1.f*glm::vec3(forward.x, forward.y, forward.z), glm::vec3(0,1,0));
+				move = glm::cross(-1.f*forward, glm::vec3(0,1,0));
 			}
 			/*if (state[SDL_SCANCODE_SPACE]) {
 				if(!jumping && !falling){
@@ -490,14 +490,8 @@ int main(int argc, char *argv[]){
 				//glm::vec3 look = forward - rayCast(mouse_x, mouse_y);
 				mouse_x = cur_x;
 				mouse_y = cur_y;
-				cam_yaw -= turn_x;
-				cam_pitch += turn_y;
-				if(cam_pitch > 89.f)
-					cam_pitch = 89.f;
-				if(cam_pitch < -89.f)
-					cam_pitch = -89.f;
 				//printf("\nmouse x: %d\n", mouse_x);
-				if(mouse_x <= 5){
+				/*if(mouse_x <= 5){
 					turn_x += 0.5;
 					forward = (glm::rotate(5.f*turn_x*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
 					//usleep(10000);
@@ -506,7 +500,7 @@ int main(int argc, char *argv[]){
 					turn_x -= 0.5;
 					forward = (glm::rotate(5.f*turn_x*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
 					//usleep(10000);
-				}
+				}*/
 				if(mouse & SDL_BUTTON(SDL_BUTTON_LEFT)){
 					//pickUp(player.pos);
 					if(!selected){
@@ -522,6 +516,12 @@ int main(int argc, char *argv[]){
 				}
 				if(mouse & SDL_BUTTON(SDL_BUTTON_RIGHT));
 				else {
+					cam_yaw -= turn_x;
+					cam_pitch += turn_y;
+					if(cam_pitch > 89.f)
+						cam_pitch = 89.f;
+					if(cam_pitch < -89.f)
+						cam_pitch = -89.f;
 					//forward = rayCast(mouse_x, mouse_y, player.pos);
 					//forward = (glm::rotate(turn_x*time_past, glm::vec3(0, 1, 0)) * glm::vec4(forward, 0.f));
 					//forward = (glm::rotate(turn_y*time_past, glm::cross(fwd, glm::vec3(0,1,0))) * glm::vec4(forward, 0.f));
@@ -576,19 +576,9 @@ int main(int argc, char *argv[]){
 			Lights(texturedShader, lights);
 
 			glm::vec3 mouse_ray = rayCast(mouse_x, mouse_y, player.pos);
+			Object laser = Object(playerPos + rayCast(mouse_x, mouse_y, player.pos), glm::vec3(0.01), glm::vec3(0,0,0), glm::vec3(0,0,0), 3, -1, glm::vec3(1,0,0), 'z');
 			if(selected && !scaling && !rotating){
-				/*if(raySphereIntersection(objects[cur_selection])){
-					printf("Object start position: (%f, %f, %f)\n", start_pos.x, start_pos.y, start_pos.z);
-					printf("Object intersect position: (%f, %f, %f)\n", intersect.x, intersect.y, intersect.z);
-				}*/
-				
-				//objects[cur_selection].pos = start_pos + float((mouse_ray - start_pos - objects[cur_selection].pos).length()) * rayCast(mouse_x, mouse_y, player.pos);
-				//glm::vec3 obj_offset = start_pos - mouse_ray;
-				//objects[cur_selection].pos = player.pos + rayCast(mouse_x, mouse_y, player.pos);
-				objects[cur_selection].pos = start_pos + float((player.pos - start_pos).length())*glm::normalize(mouse_ray);
-				//objects[cur_selection].pos.x = start_pos.x + cos(glm::radians(cam_yaw)) * cos(glm::radians(cam_pitch));
-				//objects[cur_selection].pos.y = start_pos.y + sin(glm::radians(cam_pitch));
-				//objects[cur_selection].pos.z = start_pos.z + sin(glm::radians(cam_yaw)) * cos(glm::radians(cam_pitch));
+				objects[cur_selection].pos = start_pos + float((player.pos + mouse_ray - start_pos).length())*glm::normalize(mouse_ray);
 
 				start_pos += 2.f*move*time_past;
 			}
@@ -610,14 +600,7 @@ int main(int argc, char *argv[]){
 				start_pos += 0.25f * turn_y * glm::vec3(mouse_ray.x, 0, mouse_ray.z);
 				objects[cur_selection].pos = start_pos; 
 			}
-
-			Object laser = Object(playerPos + rayCast(mouse_x, mouse_y, player.pos), glm::vec3(0.01), glm::vec3(0,0,0), glm::vec3(0,0,0), 3, -1, glm::vec3(1,0,0), 'z');
 			draw(texturedShader, laser, laser.texNum, laser.color);
-
-			/*forward.x = cos(glm::radians(cam_yaw)) * cos(glm::radians(cam_pitch));
-			forward.y = sin(glm::radians(cam_pitch));
-			forward.z = sin(glm::radians(cam_yaw)) * cos(glm::radians(cam_pitch));
-			forward = glm::normalize(forward);*/
 			/// JUMPING ///
 			/*
 			if(jumping && playerPos.y - prev_y <= 0.5){
@@ -787,12 +770,10 @@ void drawGUI(ImVec4 clear_color){
 	ImGui::SliderFloat("Pitch", &(selectedObject.pitch), -3.14f, 3.14f);
 	ImGui::SliderFloat("Yaw", &(selectedObject.yaw), -3.14f, 3.14f);
 
-	ImGui::Text("Lighting");
+	ImGui::Text("Global Lighting");
 	ImGui::SliderFloat("Ambient", &(ambient), 0.0f, 2.0f);
 	ImGui::SliderFloat("Diffuse", &(diff), 0.0f, 5.0f);
 	ImGui::SliderFloat("Specularity", &(spec), 0.0f, 5.0f);
-
-	ImGui::Text("Background Color");
 	ImGui::ColorEdit3("Background Color", (float*)&back_color);
 	//back_color = glm::vec3(backgr_color.x, backgr_color.y, backgr_color.z);
 
