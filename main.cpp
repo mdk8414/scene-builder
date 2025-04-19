@@ -424,7 +424,7 @@ int main(int argc, char *argv[]){
 			}
 
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_SPACE){ //If "space" is pressed
-				obj = Object(player.pos + forward, glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), glm::vec3(0,0,0), selectedObject.modelNum, selectedObject.texNum, glm::vec3(1,0,0), 'w');
+				obj = Object(player.pos + rayCast(mouse_x, mouse_y, player.pos), glm::vec3(0.5,0.5,0.5), glm::vec3(1,1,1), glm::vec3(0,0,0), selectedObject.modelNum, selectedObject.texNum, glm::vec3(1,0,0), 'w');
 				objects.push_back(obj);
 				//selected = true;
 				//cur_selection = objects.size() - 1;
@@ -513,6 +513,9 @@ int main(int argc, char *argv[]){
 							selectedObject.roll = objects[cur_selection].rotAngle.x;
 							selectedObject.pitch = objects[cur_selection].rotAngle.y;
 							selectedObject.yaw = objects[cur_selection].rotAngle.z;
+							selectedObject.scaleX = objects[cur_selection].scale.x;
+							selectedObject.scaleY = objects[cur_selection].scale.y;
+							selectedObject.scaleZ = objects[cur_selection].scale.z;
 						}
 					}
 				}
@@ -580,7 +583,8 @@ int main(int argc, char *argv[]){
 			glm::vec3 mouse_ray = rayCast(mouse_x, mouse_y, player.pos);
 			Object laser = Object(playerPos + rayCast(mouse_x, mouse_y, player.pos), glm::vec3(0.01), glm::vec3(0,0,0), glm::vec3(0,0,0), 3, -1, glm::vec3(1,0,0), 'z');
 			if(selected && !scaling && !rotating){
-				objects[cur_selection].pos = start_pos + float((player.pos + mouse_ray - start_pos).length())*glm::normalize(mouse_ray);
+				objects[cur_selection].pos = start_pos + float((player.pos + mouse_ray - start_pos).length())*mouse_ray;
+				//forward = glm::normalize(forward);
 
 				start_pos += 2.f*move*time_past;
 			}
@@ -598,8 +602,8 @@ int main(int argc, char *argv[]){
 				}
 			}
 			else if(selected && scaling && rotating){
-				glm::vec3 mouse_ray = rayCast(mouse_x, mouse_y, start_pos);
-				start_pos += 0.25f * turn_y * glm::vec3(mouse_ray.x, 0, mouse_ray.z);
+				//glm::vec3 mouse_ray = rayCast(mouse_x, mouse_y, start_pos);
+				start_pos += 2.f * turn_y * time_past * glm::vec3(mouse_ray.x, 0, mouse_ray.z);
 				objects[cur_selection].pos = start_pos; 
 			}
 			draw(texturedShader, laser, laser.texNum, laser.color);
